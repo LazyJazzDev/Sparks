@@ -1,4 +1,8 @@
 #pragma once
 #include "long_march.h"
 
-namespace sparks {}
+namespace sparks {
+
+using namespace long_march;
+
+}

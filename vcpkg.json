@@ -1,5 +1,5 @@
 {
-  "name": "longmarch",
+  "name": "sparks",
   "version-string": "0.0.1",
   "description": "This road I'm taking is long and hard, but I must keep moving forward. No turning back.",
   "dependencies": [
@@ -10,6 +10,7 @@
     "spdlog",
     "vulkan-memory-allocator",
     "glslang",
-    "gtest"
+    "gtest",
+    "imgui"
   ]
 }

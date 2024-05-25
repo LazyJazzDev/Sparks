@@ -4,6 +4,7 @@
 #include "sparks/utils/utils.h"
 
 int main() {
-  std::cout << sparks::FileProbe::GetInstance() << std::endl;
-  std::cout << sparks::FindAssetsFile("README.md") << std::endl;
+  sparks::AppSettings app_settings;
+  sparks::Application app(app_settings);
+  app.Run();
 }
