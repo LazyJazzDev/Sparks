@@ -5,6 +5,7 @@
   "dependencies": [
     "eigen3",
     "glfw3",
+    "glm",
     "fmt",
     "spdlog",
     "vulkan-memory-allocator",

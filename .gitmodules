@@ -1,3 +1,6 @@
 [submodule "LongMarch"]
 	path = external/LongMarch
 	url = git@github.com:LazyJazzDev/LongMarch.git
+[submodule "assets"]
+	path = assets
+	url = git@github.com:LazyJazzDev/SparksAssets.git
