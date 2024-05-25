@@ -53,6 +53,19 @@ void Application::HeadlessMainLoop() {
 void Application::OnInit() {
   CreateFrameImage();
   CreateImGuiManager();
+  Texture texture[5];
+  texture[0].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox0.bmp"));
+  texture[1].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox1.bmp"));
+  texture[2].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox2.bmp"));
+  texture[3].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox3.bmp"));
+  texture[4].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox4.bmp"));
+  std::vector<const Texture *> textures;
+  textures.reserve(5);
+  for (int i = 0; i < 5; i++) {
+    textures.push_back(&texture[i]);
+  }
+  Texture envmap = SkyBoxToEnvmap(textures, 1024);
+  envmap.SaveToFile("envmap.png");
 }
 
 void Application::OnClose() {
@@ -94,7 +107,7 @@ void Application::CreateFrameImage() {
   int width, height;
   glfwGetFramebufferSize(window_, &width, &height);
   CreateFrameImage(width, height);
-  core_->FrameResizeEvent().RegisterCallback(
+  core_->FrameSizeEvent().RegisterCallback(
       [this](uint32_t width, uint32_t height) {
         CreateFrameImage(width, height);
       });

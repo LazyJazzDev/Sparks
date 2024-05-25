@@ -1,5 +1,6 @@
 #pragma once
 #include "sparks/app/app_settings.h"
+#include "sparks/assets/assets.h"
 
 namespace sparks {
 

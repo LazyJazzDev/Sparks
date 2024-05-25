@@ -29,6 +29,7 @@ FileProbe &FileProbe::GetInstance() {
   static FileProbe instance;
   static bool initialized = false;
   if (!initialized) {
+    instance.AddSearchPath("");
     instance.AddSearchPath(SPARKS_ASSETS_DIR);
     instance.AddSearchPath("./");
     instance.AddSearchPath("../");
@@ -37,6 +38,7 @@ FileProbe &FileProbe::GetInstance() {
   }
   return instance;
 }
+
 std::ostream &operator<<(std::ostream &os, const FileProbe &probe) {
   os << "Search paths:\n-------------" << std::endl;
   for (const auto &path : probe.search_paths_) {
