@@ -6,6 +6,7 @@ namespace sparks {
 struct EnvMapSettings {
   float offset{0.0f};
   float exposure{1.0f};
+  int reflect{1};
 };
 
 class EnvMap {

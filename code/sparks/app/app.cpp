@@ -1,5 +1,7 @@
 #include "sparks/app/app.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+
 namespace sparks {
 
 Application::Application(const AppSettings &settings) : settings_(settings) {
@@ -193,10 +195,38 @@ void Application::LoadScene() {
   int entity_id = scene_->CreateEntity();
   auto entity = scene_->GetEntity(entity_id);
   auto envmap = scene_->GetEnvMap();
+
   Texture envmap_texture;
   envmap_texture.LoadFromFile(FindAssetsFile("texture/terrain/envmap.png"));
   auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
   envmap->SetEnvmapTexture(envmap_id);
+
+  Texture terrain_texture;
+  terrain_texture.LoadFromFile(
+      FindAssetsFile("texture/terrain/terrain-texture3.bmp"));
+
+  Texture terrain_detail_texture;
+  terrain_detail_texture.LoadFromFile(
+      FindAssetsFile("texture/terrain/detail.bmp"));
+  auto terrain_texture_id =
+      asset_manager->LoadTexture(terrain_texture, "TerrainTexture");
+  auto terrain_detail_texture_id = asset_manager->LoadTexture(
+      terrain_detail_texture, "TerrainDetailTexture");
+
+  entity->SetAlbedoTexture(terrain_texture_id);
+  entity->SetAlbedoDetailTexture(terrain_detail_texture_id);
+
+  Texture heightmap_texture;
+  heightmap_texture.LoadFromFile(
+      FindAssetsFile("texture/terrain/heightmap.bmp"));
+  Mesh terrain_mesh;
+  terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
+  auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
+  entity->SetMesh(terrain_mesh_id);
+  entity->GetMaterial().model =
+      glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -0.05f, 0.0f});
+  scene_->Camera()->GetFar() = 10.0f;
+  scene_->Camera()->GetNear() = 0.001f;
 }
 
 }  // namespace sparks

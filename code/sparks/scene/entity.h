@@ -1,20 +1,44 @@
 #pragma once
+#include "sparks/scene/material.h"
 #include "sparks/scene/scene_utils.h"
 
 namespace sparks {
 class Entity {
  public:
   Entity(Scene *scene);
+  ~Entity();
 
   vulkan::Core *Core() const;
+
+  void SetMesh(uint32_t mesh_id);
 
   uint32_t MeshId() const {
     return mesh_id_;
   }
 
+  Material &GetMaterial() {
+    return material_;
+  }
+
+  const Material &GetMaterial() const {
+    return material_;
+  }
+
+  vulkan::DescriptorSet *DescriptorSet(int frame_id) {
+    return descriptor_sets_[frame_id].get();
+  }
+
+  void SetAlbedoTexture(uint32_t texture_id);
+  void SetAlbedoDetailTexture(uint32_t texture_id);
+
+  void Update();
+  void Sync(VkCommandBuffer cmd_buffer, int frame_id);
+
  private:
   Scene *scene_;
   uint32_t mesh_id_{};
+  Material material_{};
   std::vector<std::unique_ptr<vulkan::DescriptorSet>> descriptor_sets_;
+  std::unique_ptr<vulkan::DynamicBuffer<Material>> material_buffer_;
 };
 }  // namespace sparks

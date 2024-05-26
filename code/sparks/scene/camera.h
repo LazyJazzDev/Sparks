@@ -27,6 +27,30 @@ class Camera {
     return euler_angles_;
   }  // pitch, yaw, roll
 
+  float &GetFov() {
+    return fov_;
+  }
+
+  const float &GetFov() const {
+    return fov_;
+  }
+
+  float &GetNear() {
+    return near_;
+  }
+
+  const float &GetNear() const {
+    return near_;
+  }
+
+  float &GetFar() {
+    return far_;
+  }
+
+  const float &GetFar() const {
+    return far_;
+  }
+
  private:
   glm::vec3 euler_angles_{0.0f, 0.0f, 0.0f};
   glm::vec3 position_{0.0f, 0.0f, 0.0f};

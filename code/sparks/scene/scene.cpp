@@ -58,11 +58,17 @@ int Scene::CreateEntity(Entity **pp_entity) {
 void Scene::Update(float delta_time) {
   envmap_->Update();
   UpdateDynamicBuffers();
+  for (auto &entity : entities_) {
+    entity.second->Update();
+  }
 }
 
 void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
   envmap_->Sync(cmd_buffer, frame_id);
   scene_settings_buffer_->SyncData(cmd_buffer, frame_id);
+  for (auto &entity : entities_) {
+    entity.second->Sync(cmd_buffer, frame_id);
+  }
 }
 
 void Scene::UpdateDynamicBuffers() {
@@ -87,6 +93,12 @@ void Scene::DrawEnvmap(VkCommandBuffer cmd_buffer, int frame_id) {
 
 void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {
   for (auto &entity : entities_) {
+    VkDescriptorSet descriptor_sets[] = {
+        entity.second->DescriptorSet(frame_id)->Handle()};
+    vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            renderer_->EntityPipelineLayout()->Handle(), 1, 1,
+                            descriptor_sets, 0, nullptr);
+
     uint32_t mesh_id = entity.second->MeshId();
     auto mesh = asset_manager_->GetMesh(mesh_id);
     VkBuffer vertex_buffers[] = {
@@ -96,7 +108,7 @@ void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {
     vkCmdBindIndexBuffer(cmd_buffer,
                          mesh->index_buffer_->GetBuffer(frame_id)->Handle(), 0,
                          VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cmd_buffer, mesh->index_buffer_->Length(), 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd_buffer, mesh->index_buffer_->Length(), 2, 0, 0, 0);
   }
 }
 }  // namespace sparks
