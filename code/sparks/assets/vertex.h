@@ -9,7 +9,7 @@ struct Vertex {
   glm::vec3 normal{};
   glm::vec3 tangent{};
   glm::vec2 tex_coord{};
-  float signal{};
+  float signal{1.0f};
 
   bool operator<(const Vertex &vertex) const {
     if (position.x < vertex.position.x)

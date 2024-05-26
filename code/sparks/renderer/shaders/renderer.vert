@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform SceneSettings {
+layout(set = 0, binding = 0, std140) uniform SceneSettings {
   mat4 projection;
   mat4 inv_projection;
   mat4 world_to_camera;

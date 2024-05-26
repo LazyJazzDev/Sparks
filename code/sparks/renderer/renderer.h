@@ -1,5 +1,6 @@
 #pragma once
 #include "sparks/asset_manager/asset_manager.h"
+#include "sparks/renderer/film.h"
 #include "sparks/renderer/renderer_utils.h"
 
 namespace sparks {
