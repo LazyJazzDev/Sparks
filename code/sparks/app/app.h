@@ -26,6 +26,8 @@ class Application {
   void CreateAssetManager();
   void CreateRenderer();
 
+  void LoadScene();
+
   void DestroyFrameImage();
   void DestroyImGuiManager();
   void DestroyAssetManager();
@@ -41,6 +43,8 @@ class Application {
 
   std::unique_ptr<AssetManager> asset_manager_;
   std::unique_ptr<Renderer> renderer_;
+  std::unique_ptr<Film> film_;
+  std::unique_ptr<Scene> scene_;
 };
 
 }  // namespace sparks

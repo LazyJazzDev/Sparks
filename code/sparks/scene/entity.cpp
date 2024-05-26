@@ -6,8 +6,11 @@
 namespace sparks {
 Entity::Entity(Scene *scene) : scene_(scene) {
   descriptor_sets_.resize(scene->Renderer()->Core()->MaxFramesInFlight());
-  for (auto &descriptor_set : descriptor_sets_) {
-  }
+  //  for (auto &descriptor_set : descriptor_sets_) {
+  //    scene_->DescriptorPool()->AllocateDescriptorSet(
+  //        scene_->Renderer()->EntityDescriptorSetLayout()->Handle(),
+  //        &descriptor_set);
+  //  }
 }
 
 vulkan::Core *Entity::Core() const {

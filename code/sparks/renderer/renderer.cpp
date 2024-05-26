@@ -132,9 +132,90 @@ void Renderer::DestroyPipelines() {
 }
 
 int Renderer::CreateScene(AssetManager *asset_manager,
-                          double_ptr<Scene> *pp_scene,
-                          int max_entities) {
-  pp_scene->construct(this, asset_manager, max_entities);
+                          int max_entities,
+                          double_ptr<class Scene> pp_scene) {
+  pp_scene.construct(this, asset_manager, max_entities);
   return 0;
+}
+
+int Renderer::CreateFilm(uint32_t width,
+                         uint32_t height,
+                         double_ptr<Film> pp_film) {
+  Film film;
+  film.renderer = this;
+  Core()->Device()->CreateImage(
+      kAlbedoFormat, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.albedo_image);
+  Core()->Device()->CreateImage(
+      kPositionFormat, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.position_image);
+  Core()->Device()->CreateImage(
+      kNormalFormat, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.normal_image);
+  Core()->Device()->CreateImage(
+      kIntensityFormat, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.intensity_image);
+  Core()->Device()->CreateImage(kDepthFormat, VkExtent2D{width, height},
+                                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                                &film.depth_image);
+  RenderPass()->CreateFramebuffer(
+      {film.albedo_image->ImageView(), film.position_image->ImageView(),
+       film.normal_image->ImageView(), film.intensity_image->ImageView(),
+       film.depth_image->ImageView()},
+      VkExtent2D{width, height}, &film.framebuffer);
+  pp_film.construct(std::move(film));
+  return 0;
+}
+
+void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
+                           Film *film,
+                           Scene *scene) {
+  std::vector<VkClearValue> clear_values(5);
+  clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+  clear_values[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
+  clear_values[2].color = {0.0f, 0.0f, 0.0f, 1.0f};
+  clear_values[3].color = {0.6f, 0.7f, 0.8f, 1.0f};
+  clear_values[4].depthStencil = {1.0f, 0};
+  VkRenderPassBeginInfo render_pass_begin_info{
+      VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      nullptr,
+      render_pass_->Handle(),
+      film->framebuffer->Handle(),
+      {{0, 0}, film->framebuffer->Extent()},
+      static_cast<uint32_t>(clear_values.size()),
+      clear_values.data()};
+  vkCmdBeginRenderPass(cmd_buffer, &render_pass_begin_info,
+                       VK_SUBPASS_CONTENTS_INLINE);
+
+  vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipeline_->Handle());
+
+  // scissor and viewport
+  VkViewport viewport = {0.0f,
+                         0.0f,
+                         static_cast<float>(film->framebuffer->Extent().width),
+                         static_cast<float>(film->framebuffer->Extent().height),
+                         0.0f,
+                         1.0f};
+  VkRect2D scissor = {{0, 0}, film->framebuffer->Extent()};
+  vkCmdSetViewport(cmd_buffer, 0, 1, &viewport);
+  vkCmdSetScissor(cmd_buffer, 0, 1, &scissor);
+
+  // bind descriptor set
+  VkDescriptorSet descriptor_sets[] = {
+      scene->SceneSettingsDescriptorSet(core_->CurrentFrame())};
+
+  vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline_layout_->Handle(), 0, 1, descriptor_sets, 0,
+                          nullptr);
+
+  scene->DrawEntities(cmd_buffer, core_->CurrentFrame());
+
+  vkCmdEndRenderPass(cmd_buffer);
 }
 }  // namespace sparks

@@ -2,6 +2,6 @@
 #include "sparks/utils/utils.h"
 
 namespace sparks {
-class Scene;
+class Renderer;
 struct Film;
 }  // namespace sparks

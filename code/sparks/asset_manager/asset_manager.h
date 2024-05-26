@@ -26,8 +26,8 @@ class AssetManager {
 
  private:
   vulkan::Core *core_;
-  uint32_t mesh_count_{};
-  uint32_t texture_count_{};
+  uint32_t next_mesh_id_{};
+  uint32_t next_texture_id_{};
   std::map<uint32_t, std::unique_ptr<TextureAsset>> textures_;
   std::map<uint32_t, std::unique_ptr<MeshAsset>> meshes_;
 };

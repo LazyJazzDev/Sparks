@@ -21,10 +21,10 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
     return -1;
   }
 
-  textures_[texture_count_] =
+  textures_[next_texture_id_] =
       std::make_unique<TextureAsset>(std::move(texture_asset));
 
-  return texture_count_++;
+  return next_texture_id_++;
 }
 
 int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
@@ -32,7 +32,8 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   mesh_asset.name_ = std::move(name);
   if (core_->CreateStaticBuffer<Vertex>(
           mesh.Vertices().size(),
-          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
           &mesh_asset.vertex_buffer_) != VK_SUCCESS) {
     return -1;
@@ -40,7 +41,8 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
 
   if (core_->CreateStaticBuffer<uint32_t>(
           mesh.Indices().size(),
-          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+          VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
           &mesh_asset.index_buffer_) != VK_SUCCESS) {
     return -1;
@@ -71,9 +73,9 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   //    return -1;
   //  }
 
-  meshes_[mesh_count_] = std::make_unique<MeshAsset>(std::move(mesh_asset));
+  meshes_[next_mesh_id_] = std::make_unique<MeshAsset>(std::move(mesh_asset));
 
-  return mesh_count_++;
+  return next_mesh_id_++;
 }
 
 void AssetManager::DestroyTexture(uint32_t id) {

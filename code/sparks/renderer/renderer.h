@@ -2,6 +2,7 @@
 #include "sparks/asset_manager/asset_manager.h"
 #include "sparks/renderer/film.h"
 #include "sparks/renderer/renderer_utils.h"
+#include "sparks/scene/scene.h"
 
 namespace sparks {
 class Renderer {
@@ -14,8 +15,8 @@ class Renderer {
   }
 
   int CreateScene(AssetManager *asset_manager,
-                  double_ptr<Scene> *pp_scene,
-                  int max_entities);
+                  int max_entities,
+                  double_ptr<struct Scene> pp_scene);
 
   vulkan::DescriptorSetLayout *SceneDescriptorSetLayout() {
     return scene_descriptor_set_layout_.get();
@@ -32,6 +33,12 @@ class Renderer {
   vulkan::Sampler *DefaultSampler() {
     return sampler_.get();
   }
+
+  int CreateFilm(uint32_t width, uint32_t height, double_ptr<Film> pp_film);
+
+  void RenderScene(VkCommandBuffer cmd_buffer,
+                   Film *film,
+                   sparks::Scene *scene);
 
  private:
   void CreateDescriptorSetLayouts();

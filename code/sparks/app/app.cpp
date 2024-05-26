@@ -55,6 +55,7 @@ void Application::OnInit() {
   CreateImGuiManager();
   CreateAssetManager();
   CreateRenderer();
+  LoadScene();
 }
 
 void Application::OnClose() {
@@ -65,10 +66,23 @@ void Application::OnClose() {
 }
 
 void Application::OnUpdate() {
+  auto current_time = std::chrono::high_resolution_clock::now();
+  static auto last_time = current_time;
+  float delta_time = std::chrono::duration<float, std::chrono::seconds::period>(
+                         current_time - last_time)
+                         .count();
+
+  scene_->Update(delta_time);
+
   imgui_manager_->BeginFrame();
   ImGui::ShowDemoWindow();
   asset_manager_->ImGui();
   imgui_manager_->EndFrame();
+
+  core_->TransferCommandPool()->SingleTimeCommands(
+      core_->TransferQueue(), [&](VkCommandBuffer cmd_buffer) {
+        scene_->SyncData(cmd_buffer, core_->CurrentFrame());
+      });
 }
 
 void Application::OnRender() {
@@ -82,6 +96,8 @@ void Application::OnRender() {
       VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT);
 
+  renderer_->RenderScene(cmd_buffer, film_.get(), scene_.get());
+
   imgui_manager_->Render(cmd_buffer);
 
   vulkan::TransitImageLayout(
@@ -91,7 +107,8 @@ void Application::OnRender() {
       VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
       VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
-  core_->OutputFrame(frame_image_.get());
+  //  core_->OutputFrame(frame_image_.get());
+  core_->OutputFrame(film_->intensity_image.get());
   core_->EndFrame();
 }
 
@@ -141,10 +158,24 @@ void Application::DestroyAssetManager() {
 
 void Application::CreateRenderer() {
   renderer_ = std::make_unique<Renderer>(core_.get());
+  renderer_->CreateFilm(core_->Swapchain()->Extent().width,
+                        core_->Swapchain()->Extent().height, &film_);
+  core_->FrameSizeEvent().RegisterCallback(
+      [this](int width, int height) { film_->Resize(width, height); });
+  renderer_->CreateScene(asset_manager_.get(), 2, &scene_);
 }
 
 void Application::DestroyRenderer() {
+  scene_.reset();
+  film_.reset();
   renderer_.reset();
+}
+
+void Application::LoadScene() {
+  auto asset_manager = scene_->AssetManager();
+  scene_->Camera()->GetPosition() = glm::vec3{0.0f, 0.0f, 5.0f};
+  int entity_id = scene_->CreateEntity();
+  auto entity = scene_->GetEntity(entity_id);
 }
 
 }  // namespace sparks

@@ -8,8 +8,13 @@ class Entity {
 
   vulkan::Core *Core() const;
 
+  uint32_t MeshId() const {
+    return mesh_id_;
+  }
+
  private:
   Scene *scene_;
+  uint32_t mesh_id_{};
   std::vector<std::unique_ptr<vulkan::DescriptorSet>> descriptor_sets_;
 };
 }  // namespace sparks
