@@ -10,6 +10,8 @@ scene_settings;
 
 layout(set = 1, binding = 0, std140) uniform ModelSettings {
   mat4 model;
+  vec4 detail_scale_offset;
+  vec4 color;
 }
 model_settings;
 

@@ -14,6 +14,8 @@ layout(location = 3) out vec4 out_intensity;
 
 layout(set = 1, binding = 0, std140) uniform ModelSettings {
   mat4 model;
+  vec4 detail_scale_offset;
+  vec4 color;
 }
 model_settings;
 
@@ -25,8 +27,11 @@ void main() {
     discard;
   }
 
-  vec3 color = texture(albedo_map, in_tex_coord).rgb *
-               texture(normal_map, in_tex_coord).rgb;
+  vec3 color =
+      texture(albedo_map, in_tex_coord).rgb *
+      texture(normal_map, in_tex_coord * model_settings.detail_scale_offset.xy +
+                              model_settings.detail_scale_offset.zw)
+          .rgb;
   vec3 normal = normalize(in_normal);
   vec3 tangent = normalize(in_tangent);
   vec3 bitangent = normalize(in_bitangent);
@@ -37,5 +42,5 @@ void main() {
   out_albedo = vec4(1.0);
   out_position = vec4(in_pos, 0.0);
   out_normal = vec4(normal, 0.0);
-  out_intensity = vec4(color, 1.0);
+  out_intensity = vec4(color, 1.0) * model_settings.color;
 }
