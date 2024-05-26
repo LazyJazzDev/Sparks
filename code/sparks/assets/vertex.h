@@ -64,5 +64,19 @@ struct Vertex {
            tex_coord == tex_coord && tangent == vertex.tangent &&
            signal == vertex.signal;
   }
+
+  friend std::ostream &operator<<(std::ostream &os, const Vertex &vertex) {
+    os << "Vertex: {"
+       << "position: " << vertex.position.x << ", " << vertex.position.y << ", "
+       << vertex.position.z << ", "
+       << "normal: " << vertex.normal.x << ", " << vertex.normal.y << ", "
+       << vertex.normal.z << ", "
+       << "tangent: " << vertex.tangent.x << ", " << vertex.tangent.y << ", "
+       << vertex.tangent.z << ", "
+       << "tex_coord: " << vertex.tex_coord.x << ", " << vertex.tex_coord.y
+       << ", "
+       << "signal: " << vertex.signal << "}";
+    return os;
+  }
 };
 }  // namespace sparks

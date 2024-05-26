@@ -53,22 +53,13 @@ void Application::HeadlessMainLoop() {
 void Application::OnInit() {
   CreateFrameImage();
   CreateImGuiManager();
-  Texture texture[5];
-  texture[0].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox0.bmp"));
-  texture[1].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox1.bmp"));
-  texture[2].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox2.bmp"));
-  texture[3].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox3.bmp"));
-  texture[4].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox4.bmp"));
-  std::vector<const Texture *> textures;
-  textures.reserve(5);
-  for (int i = 0; i < 5; i++) {
-    textures.push_back(&texture[i]);
-  }
-  Texture envmap = SkyBoxToEnvmap(textures, 1024);
-  envmap.SaveToFile("envmap.png");
+  CreateAssetManager();
+  CreateRenderer();
 }
 
 void Application::OnClose() {
+  DestroyRenderer();
+  DestroyAssetManager();
   DestroyImGuiManager();
   DestroyFrameImage();
 }
@@ -76,6 +67,7 @@ void Application::OnClose() {
 void Application::OnUpdate() {
   imgui_manager_->BeginFrame();
   ImGui::ShowDemoWindow();
+  asset_manager_->ImGui();
   imgui_manager_->EndFrame();
 }
 
@@ -137,6 +129,22 @@ void Application::CreateImGuiManager() {
 
 void Application::DestroyImGuiManager() {
   imgui_manager_.reset();
+}
+
+void Application::CreateAssetManager() {
+  asset_manager_ = std::make_unique<AssetManager>(core_.get());
+}
+
+void Application::DestroyAssetManager() {
+  asset_manager_.reset();
+}
+
+void Application::CreateRenderer() {
+  renderer_ = std::make_unique<Renderer>(core_.get());
+}
+
+void Application::DestroyRenderer() {
+  renderer_.reset();
 }
 
 }  // namespace sparks

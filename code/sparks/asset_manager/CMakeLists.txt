@@ -5,6 +5,6 @@ add_library(${SPARKS_SUBLIB_NAME} ${SOURCES})
 list(APPEND SPARKS_LIBS ${SPARKS_SUBLIB_NAME})
 set(SPARKS_LIBS ${SPARKS_LIBS} PARENT_SCOPE)
 
-target_include_directories(${SPARKS_SUBLIB_NAME} PUBLIC ${SPARKS_INCLUDE_DIR})
+target_include_directories(${SPARKS_SUBLIB_NAME} PUBLIC ${SPARKS_INCLUDE_DIR} ${STB_INC_DIR})
 
-target_link_libraries(${SPARKS_SUBLIB_NAME} PUBLIC LongMarch sparks_asset_manager)
+target_link_libraries(${SPARKS_SUBLIB_NAME} PUBLIC LongMarch sparks_assets)
