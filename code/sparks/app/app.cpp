@@ -56,6 +56,16 @@ void Application::OnInit() {
   CreateAssetManager();
   CreateRenderer();
   LoadScene();
+
+  //  Texture skybox[5];
+  //  skybox[0].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox0.bmp"));
+  //  skybox[1].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox1.bmp"));
+  //  skybox[2].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox2.bmp"));
+  //  skybox[3].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox3.bmp"));
+  //  skybox[4].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox4.bmp"));
+  //  Texture envmap = SkyBoxToEnvmap(
+  //      {&skybox[0], &skybox[1], &skybox[2], &skybox[3], &skybox[4]}, 2048);
+  //  envmap.SaveToFile("envmap.png");
 }
 
 void Application::OnClose() {
@@ -71,8 +81,10 @@ void Application::OnUpdate() {
   float delta_time = std::chrono::duration<float, std::chrono::seconds::period>(
                          current_time - last_time)
                          .count();
+  last_time = current_time;
 
   scene_->Update(delta_time);
+  camera_controller_->Update(delta_time);
 
   imgui_manager_->BeginFrame();
   ImGui::ShowDemoWindow();
@@ -163,9 +175,13 @@ void Application::CreateRenderer() {
   core_->FrameSizeEvent().RegisterCallback(
       [this](int width, int height) { film_->Resize(width, height); });
   renderer_->CreateScene(asset_manager_.get(), 2, &scene_);
+
+  camera_controller_ =
+      std::make_unique<CameraController>(core_.get(), scene_->Camera());
 }
 
 void Application::DestroyRenderer() {
+  camera_controller_.reset();
   scene_.reset();
   film_.reset();
   renderer_.reset();
@@ -176,6 +192,11 @@ void Application::LoadScene() {
   scene_->Camera()->GetPosition() = glm::vec3{0.0f, 0.0f, 5.0f};
   int entity_id = scene_->CreateEntity();
   auto entity = scene_->GetEntity(entity_id);
+  auto envmap = scene_->GetEnvMap();
+  Texture envmap_texture;
+  envmap_texture.LoadFromFile(FindAssetsFile("texture/terrain/envmap.png"));
+  auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
+  envmap->SetEnvmapTexture(envmap_id);
 }
 
 }  // namespace sparks

@@ -10,12 +10,17 @@ Scene::Scene(struct Renderer *renderer,
   vulkan::DescriptorPoolSize pool_size;
   pool_size = pool_size + renderer_->SceneDescriptorSetLayout()->GetPoolSize() *
                               renderer_->Core()->MaxFramesInFlight();
+
+  pool_size =
+      pool_size + renderer_->EnvmapDescriptorSetLayout()->GetPoolSize() *
+                      renderer_->Core()->MaxFramesInFlight();
+
   //  pool_size =
   //      pool_size + renderer_->EntityDescriptorSetLayout()->GetPoolSize() *
   //                      max_entities * renderer_->Core()->MaxFramesInFlight();
 
   renderer_->Core()->Device()->CreateDescriptorPool(
-      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 1),
+      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 2),
       &descriptor_pool_);
 
   scene_settings_buffer_ =
@@ -30,9 +35,12 @@ Scene::Scene(struct Renderer *renderer,
     descriptor_sets_[i]->BindUniformBuffer(
         0, scene_settings_buffer_->GetBuffer(i));
   }
+
+  envmap_ = std::make_unique<EnvMap>(this);
 }
 
 Scene::~Scene() {
+  envmap_.reset();
   entities_.clear();
   descriptor_sets_.clear();
   scene_settings_buffer_.reset();
@@ -48,7 +56,13 @@ int Scene::CreateEntity(Entity **pp_entity) {
 }
 
 void Scene::Update(float delta_time) {
+  envmap_->Update();
   UpdateDynamicBuffers();
+}
+
+void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
+  envmap_->Sync(cmd_buffer, frame_id);
+  scene_settings_buffer_->SyncData(cmd_buffer, frame_id);
 }
 
 void Scene::UpdateDynamicBuffers() {
@@ -62,8 +76,13 @@ void Scene::UpdateDynamicBuffers() {
   scene_settings_buffer_->At(0) = scene_settings;
 }
 
-void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
-  scene_settings_buffer_->SyncData(cmd_buffer, frame_id);
+void Scene::DrawEnvmap(VkCommandBuffer cmd_buffer, int frame_id) {
+  VkDescriptorSet descriptor_sets[] = {
+      envmap_->DescriptorSet(frame_id)->Handle()};
+  vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          renderer_->EnvmapPipelineLayout()->Handle(), 1, 1,
+                          descriptor_sets, 0, nullptr);
+  vkCmdDraw(cmd_buffer, 6, 1, 0, 0);
 }
 
 void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {

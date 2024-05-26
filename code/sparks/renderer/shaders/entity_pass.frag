@@ -17,7 +17,7 @@ void main() {
   vec3 tangent = normalize(in_tangent);
   vec3 bitangent = normalize(in_bitangent);
 
-  vec3 light_dir = normalize(vec3(1.0, 1.0, 1.0));
+  vec3 light_dir = normalize(vec3(1.0, 2.0, 3.0));
 
   color *= max(dot(normal, light_dir), 0.0) * 0.7 + 0.3;
   out_albedo = vec4(1.0);

@@ -21,6 +21,10 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
     return -1;
   }
 
+  vulkan::UploadImage(core_->GraphicsQueue(), core_->GraphicsCommandPool(),
+                      texture_asset.image_.get(), texture.Data(),
+                      texture.Width() * texture.Height() * sizeof(glm::vec4));
+
   textures_[next_texture_id_] =
       std::make_unique<TextureAsset>(std::move(texture_asset));
 

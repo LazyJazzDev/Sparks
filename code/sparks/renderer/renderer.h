@@ -22,8 +22,28 @@ class Renderer {
     return scene_descriptor_set_layout_.get();
   }
 
+  vulkan::DescriptorSetLayout *EnvmapDescriptorSetLayout() {
+    return envmap_descriptor_set_layout_.get();
+  }
+
   vulkan::DescriptorSetLayout *EntityDescriptorSetLayout() {
     return entity_descriptor_set_layout_.get();
+  }
+
+  vulkan::Pipeline *EntityPipeline() {
+    return entity_pipeline_.get();
+  }
+
+  vulkan::Pipeline *EnvmapPipeline() {
+    return envmap_pipeline_.get();
+  }
+
+  vulkan::PipelineLayout *EntityPipelineLayout() {
+    return entity_pipeline_layout_.get();
+  }
+
+  vulkan::PipelineLayout *EnvmapPipelineLayout() {
+    return envmap_pipeline_layout_.get();
   }
 
   vulkan::RenderPass *RenderPass() {
@@ -42,19 +62,31 @@ class Renderer {
 
  private:
   void CreateDescriptorSetLayouts();
-  void CreatePipelines();
+  void CreateRenderPass();
+  void CreateEnvmapPipeline();
+  void CreateEntityPipeline();
 
   void DestroyDescriptorSetLayouts();
-  void DestroyPipelines();
+  void DestroyRenderPass();
+  void DestroyEnvmapPipeline();
+  void DestroyEntityPipeline();
 
   vulkan::Core *core_;
   std::unique_ptr<vulkan::DescriptorSetLayout> scene_descriptor_set_layout_;
-  std::unique_ptr<vulkan::DescriptorSetLayout> entity_descriptor_set_layout_;
   std::unique_ptr<vulkan::RenderPass> render_pass_;
-  std::unique_ptr<vulkan::PipelineLayout> pipeline_layout_;
-  std::unique_ptr<vulkan::ShaderModule> vertex_shader_;
-  std::unique_ptr<vulkan::ShaderModule> fragment_shader_;
-  std::unique_ptr<vulkan::Pipeline> pipeline_;
+
+  std::unique_ptr<vulkan::DescriptorSetLayout> entity_descriptor_set_layout_;
+  std::unique_ptr<vulkan::PipelineLayout> entity_pipeline_layout_;
+  std::unique_ptr<vulkan::ShaderModule> entity_vertex_shader_;
+  std::unique_ptr<vulkan::ShaderModule> entity_fragment_shader_;
+  std::unique_ptr<vulkan::Pipeline> entity_pipeline_;
+
+  std::unique_ptr<vulkan::DescriptorSetLayout> envmap_descriptor_set_layout_;
+  std::unique_ptr<vulkan::PipelineLayout> envmap_pipeline_layout_;
+  std::unique_ptr<vulkan::ShaderModule> envmap_vertex_shader_;
+  std::unique_ptr<vulkan::ShaderModule> envmap_fragment_shader_;
+  std::unique_ptr<vulkan::Pipeline> envmap_pipeline_;
+
   std::unique_ptr<vulkan::Sampler> sampler_;
 };
 }  // namespace sparks

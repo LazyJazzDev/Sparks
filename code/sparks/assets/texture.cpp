@@ -31,8 +31,9 @@ int Texture::LoadFromFile(const std::string &file_path) {
   }
   pixels_.resize(width_ * height_);
   for (int i = 0; i < width_ * height_; i++) {
-    pixels_[i] = glm::vec4(pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2],
-                           pixels[i * 4 + 3]);
+    pixels_[i] = glm::pow(glm::vec4(pixels[i * 4], pixels[i * 4 + 1],
+                                    pixels[i * 4 + 2], pixels[i * 4 + 3]),
+                          glm::vec4{1.0f / 2.2f});
   }
   stbi_image_free(pixels);
   return 0;

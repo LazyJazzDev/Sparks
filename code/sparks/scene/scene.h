@@ -2,6 +2,7 @@
 #include "sparks/asset_manager/asset_manager.h"
 #include "sparks/scene/camera.h"
 #include "sparks/scene/entity.h"
+#include "sparks/scene/envmap.h"
 #include "sparks/scene/material.h"
 #include "sparks/scene/scene_settings.h"
 #include "sparks/scene/scene_utils.h"
@@ -39,9 +40,15 @@ class Scene {
     return entities_.at(id).get();
   }
 
+  EnvMap *GetEnvMap() const {
+    return envmap_.get();
+  }
+
   void Update(float delta_time);
 
   void SyncData(VkCommandBuffer cmd_buffer, int frame_id);
+
+  void DrawEnvmap(VkCommandBuffer cmd_buffer, int frame_id);
 
   void DrawEntities(VkCommandBuffer cmd_buffer, int frame_id);
 
@@ -62,6 +69,8 @@ class Scene {
 
   std::map<uint32_t, std::unique_ptr<Entity>> entities_{};
   uint32_t next_entity_id_{};
+
+  std::unique_ptr<EnvMap> envmap_{};
 
   class Camera camera_ {};
 };

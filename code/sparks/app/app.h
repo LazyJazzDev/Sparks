@@ -1,5 +1,6 @@
 #pragma once
 #include "sparks/app/app_settings.h"
+#include "sparks/app/camera_controller.h"
 #include "sparks/asset_manager/asset_manager.h"
 #include "sparks/assets/assets.h"
 #include "sparks/renderer/renderer.h"
@@ -45,6 +46,7 @@ class Application {
   std::unique_ptr<Renderer> renderer_;
   std::unique_ptr<Film> film_;
   std::unique_ptr<Scene> scene_;
+  std::unique_ptr<CameraController> camera_controller_;
 };
 
 }  // namespace sparks

@@ -10,27 +10,45 @@ namespace {
 
 Renderer::Renderer(vulkan::Core *core) : core_(core) {
   CreateDescriptorSetLayouts();
-  CreatePipelines();
+  CreateRenderPass();
+  CreateEnvmapPipeline();
+  CreateEntityPipeline();
 }
 
 Renderer::~Renderer() {
-  DestroyPipelines();
+  DestroyEntityPipeline();
+  DestroyEnvmapPipeline();
+  DestroyRenderPass();
   DestroyDescriptorSetLayouts();
 }
 
 void Renderer::CreateDescriptorSetLayouts() {
+  core_->Device()->CreateSampler(
+      VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_FALSE,
+      VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE, VK_SAMPLER_MIPMAP_MODE_LINEAR,
+      &sampler_);
+
+  VkSampler sampler = sampler_->Handle();
+
   core_->Device()->CreateDescriptorSetLayout(
       {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT,
         nullptr}},
       &scene_descriptor_set_layout_);
+  core_->Device()->CreateDescriptorSetLayout(
+      {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+        nullptr},
+       {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+        VK_SHADER_STAGE_FRAGMENT_BIT, &sampler}},
+      &envmap_descriptor_set_layout_);
 }
 
 void Renderer::DestroyDescriptorSetLayouts() {
   scene_descriptor_set_layout_.reset();
+  sampler_.reset();
 }
 
-void Renderer::CreatePipelines() {
-  LogInfo("Creating Pipelines...");
+void Renderer::CreateRenderPass() {
   std::vector<VkAttachmentDescription> descriptions;
   std::vector<vulkan::SubpassSettings> subpasses;
   std::vector<VkSubpassDependency> dependencies;
@@ -82,21 +100,62 @@ void Renderer::CreatePipelines() {
 
   core_->Device()->CreateRenderPass(descriptions, subpasses, dependencies,
                                     &render_pass_);
+}
 
+void Renderer::DestroyRenderPass() {
+  render_pass_.reset();
+}
+
+void Renderer::CreateEnvmapPipeline() {
   core_->Device()->CreatePipelineLayout(
-      {scene_descriptor_set_layout_->Handle()}, &pipeline_layout_);
+      {scene_descriptor_set_layout_->Handle(),
+       envmap_descriptor_set_layout_->Handle()},
+      &envmap_pipeline_layout_);
 
   core_->Device()->CreateShaderModule(
-      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/renderer.vert"),
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/envmap_pass.vert"),
                                  VK_SHADER_STAGE_VERTEX_BIT),
-      &vertex_shader_);
+      &envmap_vertex_shader_);
   core_->Device()->CreateShaderModule(
-      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/renderer.frag"),
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/envmap_pass.frag"),
                                  VK_SHADER_STAGE_FRAGMENT_BIT),
-      &fragment_shader_);
+      &envmap_fragment_shader_);
 
   vulkan::PipelineSettings pipeline_settings{render_pass_.get(),
-                                             pipeline_layout_.get(), 0};
+                                             envmap_pipeline_layout_.get(), 0};
+  pipeline_settings.depth_stencil_state_create_info->depthTestEnable = false;
+  pipeline_settings.depth_stencil_state_create_info->depthWriteEnable = false;
+  pipeline_settings.AddShaderStage(envmap_vertex_shader_.get(),
+                                   VK_SHADER_STAGE_VERTEX_BIT);
+  pipeline_settings.AddShaderStage(envmap_fragment_shader_.get(),
+                                   VK_SHADER_STAGE_FRAGMENT_BIT);
+  core_->Device()->CreatePipeline(pipeline_settings, &envmap_pipeline_);
+}
+
+void Renderer::DestroyEnvmapPipeline() {
+  envmap_pipeline_.reset();
+
+  envmap_vertex_shader_.reset();
+  envmap_fragment_shader_.reset();
+
+  envmap_pipeline_layout_.reset();
+}
+
+void Renderer::CreateEntityPipeline() {
+  core_->Device()->CreatePipelineLayout(
+      {scene_descriptor_set_layout_->Handle()}, &entity_pipeline_layout_);
+
+  core_->Device()->CreateShaderModule(
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/entity_pass.vert"),
+                                 VK_SHADER_STAGE_VERTEX_BIT),
+      &entity_vertex_shader_);
+  core_->Device()->CreateShaderModule(
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/entity_pass.frag"),
+                                 VK_SHADER_STAGE_FRAGMENT_BIT),
+      &entity_fragment_shader_);
+
+  vulkan::PipelineSettings pipeline_settings{render_pass_.get(),
+                                             entity_pipeline_layout_.get(), 0};
   pipeline_settings.AddInputBinding(0, sizeof(Vertex),
                                     VK_VERTEX_INPUT_RATE_VERTEX);
   pipeline_settings.AddInputAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT,
@@ -110,25 +169,24 @@ void Renderer::CreatePipelines() {
   pipeline_settings.AddInputAttribute(0, 4, VK_FORMAT_R32_SFLOAT,
                                       offsetof(Vertex, signal));
 
-  pipeline_settings.AddShaderStage(vertex_shader_.get(),
+  pipeline_settings.AddShaderStage(entity_vertex_shader_.get(),
                                    VK_SHADER_STAGE_VERTEX_BIT);
-  pipeline_settings.AddShaderStage(fragment_shader_.get(),
+  pipeline_settings.AddShaderStage(entity_fragment_shader_.get(),
                                    VK_SHADER_STAGE_FRAGMENT_BIT);
 
   pipeline_settings.SetPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   pipeline_settings.SetCullMode(VK_CULL_MODE_NONE);
 
-  core_->Device()->CreatePipeline(pipeline_settings, &pipeline_);
+  core_->Device()->CreatePipeline(pipeline_settings, &entity_pipeline_);
 }
 
-void Renderer::DestroyPipelines() {
-  pipeline_.reset();
+void Renderer::DestroyEntityPipeline() {
+  entity_pipeline_.reset();
 
-  vertex_shader_.reset();
-  fragment_shader_.reset();
+  entity_vertex_shader_.reset();
+  entity_fragment_shader_.reset();
 
-  pipeline_layout_.reset();
-  render_pass_.reset();
+  entity_pipeline_layout_.reset();
 }
 
 int Renderer::CreateScene(AssetManager *asset_manager,
@@ -193,7 +251,7 @@ void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
                        VK_SUBPASS_CONTENTS_INLINE);
 
   vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline_->Handle());
+                    envmap_pipeline_->Handle());
 
   // scissor and viewport
   VkViewport viewport = {0.0f,
@@ -211,8 +269,13 @@ void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
       scene->SceneSettingsDescriptorSet(core_->CurrentFrame())};
 
   vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipeline_layout_->Handle(), 0, 1, descriptor_sets, 0,
-                          nullptr);
+                          entity_pipeline_layout_->Handle(), 0, 1,
+                          descriptor_sets, 0, nullptr);
+
+  scene->DrawEnvmap(cmd_buffer, core_->CurrentFrame());
+
+  vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    entity_pipeline_->Handle());
 
   scene->DrawEntities(cmd_buffer, core_->CurrentFrame());
 

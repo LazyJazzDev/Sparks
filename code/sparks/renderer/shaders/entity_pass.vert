@@ -26,6 +26,7 @@ void main() {
   out_tangent = in_tangent;
   out_bitangent = in_signal * cross(in_normal, in_tangent);
   out_tex_coord = in_tex_coord;
-  gl_Position = scene_settings.projection * scene_settings.world_to_camera *
-                vec4(in_pos, 1.0);
+  gl_Position = (scene_settings.projection * scene_settings.world_to_camera *
+                 vec4(in_pos, 1.0)) *
+                vec4(1.0, -1.0, 1.0, 1.0);
 }
