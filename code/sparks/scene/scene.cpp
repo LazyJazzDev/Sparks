@@ -56,6 +56,10 @@ int Scene::CreateEntity(Entity **pp_entity) {
 }
 
 void Scene::Update(float delta_time) {
+  if (update_callback_) {
+    update_callback_(this, delta_time);
+  }
+
   envmap_->Update();
   UpdateDynamicBuffers();
   for (auto &entity : entities_) {

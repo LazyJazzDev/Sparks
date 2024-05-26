@@ -20,7 +20,7 @@ layout(set = 1, binding = 0, std140) uniform ModelSettings {
 model_settings;
 
 layout(set = 1, binding = 1) uniform sampler2D albedo_map;
-layout(set = 1, binding = 2) uniform sampler2D normal_map;
+layout(set = 1, binding = 2) uniform sampler2D detail_map;
 
 void main() {
   if (in_signal * in_pos.y < 0.0) {
@@ -29,7 +29,7 @@ void main() {
 
   vec3 color =
       texture(albedo_map, in_tex_coord).rgb *
-      texture(normal_map, in_tex_coord * model_settings.detail_scale_offset.xy +
+      texture(detail_map, in_tex_coord * model_settings.detail_scale_offset.xy +
                               model_settings.detail_scale_offset.zw)
           .rgb;
   vec3 normal = normalize(in_normal);
@@ -38,7 +38,7 @@ void main() {
 
   vec3 light_dir = normalize(vec3(1.0, 2.0, 3.0));
 
-  color *= max(dot(normal, light_dir), 0.0) * 0.7 + 0.3;
+  //  color *= max(dot(normal, light_dir), 0.0) * 0.7 + 0.3;
   out_albedo = vec4(1.0);
   out_position = vec4(in_pos, 0.0);
   out_normal = vec4(normal, 0.0);

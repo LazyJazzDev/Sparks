@@ -1,4 +1,6 @@
 #pragma once
+#include <utility>
+
 #include "sparks/asset_manager/asset_manager.h"
 #include "sparks/scene/camera.h"
 #include "sparks/scene/entity.h"
@@ -44,6 +46,10 @@ class Scene {
     return envmap_.get();
   }
 
+  void SetUpdateCallback(std::function<void(Scene *, float)> callback) {
+    update_callback_ = std::move(callback);
+  }
+
   void Update(float delta_time);
 
   void SyncData(VkCommandBuffer cmd_buffer, int frame_id);
@@ -73,5 +79,7 @@ class Scene {
   std::unique_ptr<EnvMap> envmap_{};
 
   class Camera camera_ {};
+
+  std::function<void(Scene *, float)> update_callback_{};
 };
 }  // namespace sparks

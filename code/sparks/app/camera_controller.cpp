@@ -55,7 +55,7 @@ void CameraController::Update(float delta_time) {
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
     move_dir += y_axis;
   }
-  camera_->GetPosition() += move_dir * 3.0f * delta_time;
+  camera_->GetPosition() += move_dir * 0.1f * delta_time;
 }
 
 }  // namespace sparks

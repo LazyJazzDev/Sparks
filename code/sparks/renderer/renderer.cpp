@@ -186,6 +186,16 @@ void Renderer::CreateEntityPipeline() {
   pipeline_settings.AddShaderStage(entity_fragment_shader_.get(),
                                    VK_SHADER_STAGE_FRAGMENT_BIT);
 
+  pipeline_settings.SetBlendState(
+      3, VkPipelineColorBlendAttachmentState{
+             VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA,
+             VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+             VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                 VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+
+         });
+
   pipeline_settings.SetPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   pipeline_settings.SetCullMode(VK_CULL_MODE_NONE);
 
