@@ -4,7 +4,13 @@
 
 namespace sparks {
 
-enum class AddressMode { Repeat, ClampToEdge, MirrorRepeat };
+enum class AddressMode {
+  Repeat,
+  ClampToEdge,
+  MirrorRepeat,
+  BlackBorder,
+  WhiteBorder
+};
 
 class Texture {
  public:

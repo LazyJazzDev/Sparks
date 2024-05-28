@@ -262,11 +262,12 @@ int Mesh::LoadFromHeightMap(const Texture &height_map,
 
   for (int i = 0; i <= width; i++) {
     for (int j = 0; j <= height; j++) {
-      glm::vec4 color = height_map.Sample((float(i) + 0.5f) * inv_width,
-                                          (float(j) + 0.5f) * inv_height);
-      float height = color.r * 0.299f + color.g * 0.587f + color.b * 0.114f;
+      glm::vec4 color =
+          height_map.Sample((float(i)) * inv_width, (float(j)) * inv_height,
+                            AddressMode::BlackBorder);
+      float h = color.r * 0.299f + color.g * 0.587f + color.b * 0.114f;
       vertices[j * (width + 1) + i].position =
-          glm::vec3{float(i), height, float(j)} * scale +
+          glm::vec3{float(i), h, float(j)} * scale +
           glm::vec3{0.0f, height_offset, 0.0f};
       vertices[j * (width + 1) + i].tex_coord = {float(i) * inv_width,
                                                  float(j) * inv_height};

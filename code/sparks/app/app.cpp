@@ -221,6 +221,7 @@ void Application::LoadScene() {
       FindAssetsFile("texture/terrain/heightmap.bmp"));
   Mesh terrain_mesh;
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
+  terrain_mesh.SaveObjFile("terrain.obj");
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
   entity->SetMesh(terrain_mesh_id);
   entity->GetMaterial().model =

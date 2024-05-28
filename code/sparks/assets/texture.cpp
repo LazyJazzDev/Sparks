@@ -109,6 +109,10 @@ glm::vec4 Texture::Fetch(int x, int y, AddressMode address_mode) const {
                 ? static_cast<int>(height_) * 2 - 1 - y
                 : y;
         break;
+      case AddressMode::BlackBorder:
+        return glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
+      case AddressMode::WhiteBorder:
+        return glm::vec4{1.0f};
     }
   }
   return pixels_[y * width_ + x];
@@ -116,8 +120,10 @@ glm::vec4 Texture::Fetch(int x, int y, AddressMode address_mode) const {
 
 glm::vec4 Texture::Sample(float u, float v, AddressMode address_mode) const {
   //        LogInfo("Sampling: {} {}", u, v);
-  u *= width_;
-  v *= height_;
+  u *= static_cast<float>(width_);
+  v *= static_cast<float>(height_);
+  u -= 0.5f;
+  v -= 0.5f;
   int x, y;
   float rx, ry;
   x = static_cast<int>(std::floor(u));
