@@ -57,25 +57,12 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   mesh_asset.index_buffer_->UploadContents(mesh.Indices().data(),
                                            mesh.Indices().size());
 
-  //  std::cout << "Vertices: \n";
-  //  for (const auto &vertex : mesh.Vertices()) {
-  //    std::cout << vertex << std::endl;
-  //  }
-  //  std::cout << "Indices: \n[";
-  //
-  //  for (const auto &index : mesh.Indices()) {
-  //    std::cout << index << ", ";
-  //  }
-  //  std::cout << "]" << std::endl;
-
-  //  if (core_->CreateBottomLevelAccelerationStructure(
-  //          mesh_asset.vertex_buffer_->GetBuffer(),
-  //          mesh_asset.index_buffer_->GetBuffer(),
-  //          static_cast<VkDeviceSize>(sizeof(Vertex)),
-  //          &mesh_asset.blas_) != VK_SUCCESS) {
-  //    LogError("Create BLAS failed.");
-  //    return -1;
-  //  }
+  if (core_->CreateBottomLevelAccelerationStructure(
+          mesh_asset.vertex_buffer_->GetBuffer(),
+          mesh_asset.index_buffer_->GetBuffer(), sizeof(Vertex),
+          &mesh_asset.blas_) != VK_SUCCESS) {
+    return -1;
+  }
 
   meshes_[next_mesh_id_] = std::make_unique<MeshAsset>(std::move(mesh_asset));
 
