@@ -105,12 +105,12 @@ void Application::OnRender() {
 
   renderer_->RenderScene(cmd_buffer, film_.get(), scene_.get());
 
-  vulkan::TransitImageLayout(
-      cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_GENERAL,
-      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-      VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+  //  vulkan::TransitImageLayout(
+  //      cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_GENERAL,
+  //      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+  //      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+  //      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+  //      VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
   vulkan::TransitImageLayout(
       cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_UNDEFINED,
@@ -131,10 +131,11 @@ void Application::OnRender() {
   imgui_manager_->Render(cmd_buffer);
 
   vulkan::TransitImageLayout(
-      cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+      cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_GENERAL,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+      VK_IMAGE_ASPECT_COLOR_BIT);
 
   core_->OutputFrame(frame_image_.get());
   //  core_->OutputFrame(film_->intensity_image.get());
@@ -236,7 +237,6 @@ void Application::LoadScene() {
       FindAssetsFile("texture/terrain/heightmap.bmp"));
   Mesh terrain_mesh;
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
-  terrain_mesh.SaveObjFile("terrain.obj");
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
   entity->SetMesh(terrain_mesh_id);
   entity->GetMaterial().model =

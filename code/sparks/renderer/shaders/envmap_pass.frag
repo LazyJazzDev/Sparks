@@ -11,6 +11,9 @@ envmap_data;
 
 layout(set = 1, binding = 1) uniform sampler2D envmap;
 
+layout(location = 0) out vec4 out_albedo;
+layout(location = 1) out vec4 out_position;
+layout(location = 2) out vec4 out_normal;
 layout(location = 3) out vec4 out_color;
 
 void main() {
@@ -26,5 +29,8 @@ void main() {
 
   vec3 color = texture(envmap, direction.xy).rgb;
   color = color * envmap_data.exposure;
+  out_albedo = vec4(0.0);
+  out_position = vec4(0.0);
+  out_normal = vec4(-direction, 0.0);
   out_color = vec4(color, 1.0);
 }
