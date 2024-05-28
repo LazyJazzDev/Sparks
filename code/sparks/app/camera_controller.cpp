@@ -27,7 +27,9 @@ void CameraController::Update(float delta_time) {
 
   glm::vec2 delta_angle{diff_x, diff_y};
   delta_angle *= glm::radians(0.2f);
-  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)) {
+  auto &io = ImGui::GetIO();
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) &&
+      !io.WantCaptureMouse) {
     auto &euler_angles = camera_->GetEulerAngles();
     euler_angles.x -= delta_angle.y;
     euler_angles.y -= delta_angle.x;

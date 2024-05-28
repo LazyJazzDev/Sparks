@@ -81,12 +81,12 @@ void AssetManager::ImGui() {
   if (ImGui::Begin("Asset Manager")) {
     ImGui::SeparatorText("Textures");
     for (const auto &[id, texture] : textures_) {
-      ImGui::Text(texture->name_.c_str());
+      ImGui::Text("%s", texture->name_.c_str());
     }
 
     ImGui::SeparatorText("Meshes");
     for (const auto &[id, mesh] : meshes_) {
-      ImGui::Text(mesh->name_.c_str());
+      ImGui::Text("%s", mesh->name_.c_str());
     }
   }
   ImGui::End();
