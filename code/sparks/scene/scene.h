@@ -1,4 +1,5 @@
 #pragma once
+
 #include <utility>
 
 #include "sparks/asset_manager/asset_manager.h"
@@ -15,6 +16,7 @@ class Scene {
   Scene(class Renderer *renderer,
         class AssetManager *asset_manager,
         int max_entities);
+
   ~Scene();
 
   class Renderer *Renderer() {
@@ -38,6 +40,7 @@ class Scene {
   }
 
   int CreateEntity(Entity **pp_entity = nullptr);
+
   Entity *GetEntity(uint32_t id) const {
     return entities_.at(id).get();
   }
@@ -62,11 +65,17 @@ class Scene {
     return descriptor_sets_[frame_id]->Handle();
   }
 
+  VkDescriptorSet RayTracingDescriptorSet(int frame_id) const {
+    return raytracing_descriptor_sets_[frame_id]->Handle();
+  }
+
  private:
   void UpdateDynamicBuffers();
 
   class Renderer *renderer_{};
+
   class AssetManager *asset_manager_{};
+
   std::unique_ptr<vulkan::DescriptorPool> descriptor_pool_{};
 
   std::unique_ptr<vulkan::DynamicBuffer<SceneSettings>>
@@ -81,5 +90,10 @@ class Scene {
   class Camera camera_ {};
 
   std::function<void(Scene *, float)> update_callback_{};
+
+  std::vector<std::unique_ptr<vulkan::DescriptorSet>>
+      raytracing_descriptor_sets_{};
+
+  std::unique_ptr<vulkan::AccelerationStructure> top_level_as_{};
 };
 }  // namespace sparks

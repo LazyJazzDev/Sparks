@@ -15,12 +15,16 @@ Scene::Scene(struct Renderer *renderer,
       pool_size + renderer_->EnvmapDescriptorSetLayout()->GetPoolSize() *
                       renderer_->Core()->MaxFramesInFlight();
 
-  //  pool_size =
-  //      pool_size + renderer_->EntityDescriptorSetLayout()->GetPoolSize() *
-  //                      max_entities * renderer_->Core()->MaxFramesInFlight();
+  pool_size =
+      pool_size + renderer_->EntityDescriptorSetLayout()->GetPoolSize() *
+                      max_entities * renderer_->Core()->MaxFramesInFlight();
+
+  pool_size =
+      pool_size + renderer_->RayTracingDescriptorSetLayout()->GetPoolSize() *
+                      renderer_->Core()->MaxFramesInFlight();
 
   renderer_->Core()->Device()->CreateDescriptorPool(
-      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 2),
+      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 3),
       &descriptor_pool_);
 
   scene_settings_buffer_ =
@@ -36,13 +40,24 @@ Scene::Scene(struct Renderer *renderer,
         0, scene_settings_buffer_->GetBuffer(i));
   }
 
+  renderer_->Core()->CreateTopLevelAccelerationStructure({}, &top_level_as_);
+
+  raytracing_descriptor_sets_.resize(renderer_->Core()->MaxFramesInFlight());
+  for (int i = 0; i < renderer_->Core()->MaxFramesInFlight(); i++) {
+    descriptor_pool_->AllocateDescriptorSet(
+        renderer_->RayTracingDescriptorSetLayout()->Handle(),
+        &raytracing_descriptor_sets_[i]);
+  }
+
   envmap_ = std::make_unique<EnvMap>(this);
 }
 
 Scene::~Scene() {
+  top_level_as_.reset();
   envmap_.reset();
   entities_.clear();
   descriptor_sets_.clear();
+  raytracing_descriptor_sets_.clear();
   scene_settings_buffer_.reset();
   descriptor_pool_.reset();
 }
@@ -62,9 +77,44 @@ void Scene::Update(float delta_time) {
 
   envmap_->Update();
   UpdateDynamicBuffers();
+
   for (auto &entity : entities_) {
     entity.second->Update();
   }
+
+  std::vector<std::pair<vulkan::AccelerationStructure *, glm::mat4>> instances;
+  for (auto &entity : entities_) {
+    uint32_t mesh_id = entity.second->MeshId();
+    auto mesh = asset_manager_->GetMesh(mesh_id);
+    glm::mat4 transform = entity.second->GetMaterial().model;
+    instances.emplace_back(mesh->blas_.get(), transform);
+  }
+  static int last_num_instances = -1;
+  if (last_num_instances != instances.size()) {
+    last_num_instances = instances.size();
+    renderer_->Core()->Device()->WaitIdle();
+    renderer_->Core()->CreateTopLevelAccelerationStructure(instances,
+                                                           &top_level_as_);
+  } else {
+    top_level_as_->UpdateInstances(instances,
+                                   renderer_->Core()->GraphicsCommandPool(),
+                                   renderer_->Core()->GraphicsQueue());
+  }
+
+  std::vector<const vulkan::Buffer *> vertex_buffers;
+  std::vector<const vulkan::Buffer *> index_buffers;
+  for (auto mesh_id : asset_manager_->GetMeshIds()) {
+    auto mesh = asset_manager_->GetMesh(mesh_id);
+    vertex_buffers.push_back(mesh->vertex_buffer_->GetBuffer());
+    index_buffers.push_back(mesh->index_buffer_->GetBuffer());
+  }
+
+  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
+      ->BindAccelerationStructure(0, top_level_as_.get());
+  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
+      ->BindStorageBuffers(1, vertex_buffers);
+  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
+      ->BindStorageBuffers(2, index_buffers);
 }
 
 void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {

@@ -37,6 +37,7 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   if (core_->CreateStaticBuffer<Vertex>(
           mesh.Vertices().size(),
           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
               VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
           &mesh_asset.vertex_buffer_) != VK_SUCCESS) {
@@ -46,6 +47,7 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   if (core_->CreateStaticBuffer<uint32_t>(
           mesh.Indices().size(),
           VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
               VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
           &mesh_asset.index_buffer_) != VK_SUCCESS) {
@@ -104,6 +106,22 @@ MeshAsset *AssetManager::GetMesh(uint32_t id) {
     return meshes_[id].get();
   }
   return meshes_[0].get();
+}
+
+std::set<uint32_t> AssetManager::GetTextureIds() const {
+  std::set<uint32_t> ids;
+  for (const auto &[id, texture] : textures_) {
+    ids.insert(id);
+  }
+  return ids;
+}
+
+std::set<uint32_t> AssetManager::GetMeshIds() const {
+  std::set<uint32_t> ids;
+  for (const auto &[id, mesh] : meshes_) {
+    ids.insert(id);
+  }
+  return ids;
 }
 
 }  // namespace sparks

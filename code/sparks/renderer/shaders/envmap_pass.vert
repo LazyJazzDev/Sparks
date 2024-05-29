@@ -1,12 +1,6 @@
 #version 450
-
-layout(set = 0, binding = 0, std140) uniform SceneSettings {
-  mat4 projection;
-  mat4 inv_projection;
-  mat4 world_to_camera;
-  mat4 camera_to_world;
-}
-scene_settings;
+#define SCENE_SETTINGS_SET 0
+#include "scene_settings.glsl"
 
 const vec2[6] positions = vec2[6](vec2(-1.0, -1.0),
                                   vec2(1.0, -1.0),

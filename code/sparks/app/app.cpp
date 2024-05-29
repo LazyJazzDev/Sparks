@@ -89,7 +89,7 @@ void Application::OnUpdate() {
   camera_controller_->Update(delta_time);
 
   imgui_manager_->BeginFrame();
-  ImGui::ShowDemoWindow();
+  ImGui();
   asset_manager_->ImGui();
   imgui_manager_->EndFrame();
 
@@ -112,14 +112,37 @@ void Application::OnRender() {
   //      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
   //      VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
+  renderer_->RenderSceneRayTracing(cmd_buffer, raytracing_film_.get(),
+                                   scene_.get());
+
   vulkan::TransitImageLayout(
       cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT);
 
-  vulkan::BlitImage(cmd_buffer, film_->intensity_image.get(),
-                    frame_image_.get());
+  if (output_frame_) {
+    vulkan::TransitImageLayout(
+        cmd_buffer, raytracing_film_->result_image->Handle(),
+        VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+        VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    vulkan::BlitImage(cmd_buffer, raytracing_film_->result_image.get(),
+                      frame_image_.get());
+
+    vulkan::TransitImageLayout(
+        cmd_buffer, raytracing_film_->result_image->Handle(),
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+        VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+  } else {
+    vulkan::BlitImage(cmd_buffer, film_->intensity_image.get(),
+                      frame_image_.get());
+  }
 
   vulkan::TransitImageLayout(
       cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -190,8 +213,13 @@ void Application::CreateRenderer() {
   renderer_ = std::make_unique<Renderer>(core_.get());
   renderer_->CreateFilm(core_->Swapchain()->Extent().width,
                         core_->Swapchain()->Extent().height, &film_);
-  core_->FrameSizeEvent().RegisterCallback(
-      [this](int width, int height) { film_->Resize(width, height); });
+  renderer_->CreateRayTracingFilm(core_->Swapchain()->Extent().width,
+                                  core_->Swapchain()->Extent().height,
+                                  &raytracing_film_);
+  core_->FrameSizeEvent().RegisterCallback([this](int width, int height) {
+    film_->Resize(width, height);
+    raytracing_film_->Resize(width, height);
+  });
   renderer_->CreateScene(asset_manager_.get(), 2, &scene_);
 
   camera_controller_ =
@@ -201,6 +229,7 @@ void Application::CreateRenderer() {
 void Application::DestroyRenderer() {
   camera_controller_.reset();
   scene_.reset();
+  raytracing_film_.reset();
   film_.reset();
   renderer_.reset();
 }
@@ -278,6 +307,15 @@ void Application::LoadScene() {
     water_entity->GetMaterial().detail_scale_offset.w =
         glm::mod(water_entity->GetMaterial().detail_scale_offset.w, 1.0f);
   });
+}
+
+void Application::ImGui() {
+  if (ImGui::Begin("Settings")) {
+    std::vector<const char *> output_frames = {"Color", "Ray Tracing"};
+    ImGui::Combo("Type", reinterpret_cast<int *>(&output_frame_),
+                 output_frames.data(), output_frames.size());
+  }
+  ImGui::End();
 }
 
 }  // namespace sparks

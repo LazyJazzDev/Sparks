@@ -1,12 +1,7 @@
 #version 450
 
-layout(set = 0, binding = 0, std140) uniform SceneSettings {
-  mat4 projection;
-  mat4 inv_projection;
-  mat4 world_to_camera;
-  mat4 camera_to_world;
-}
-scene_settings;
+#define SCENE_SETTINGS_SET 0
+#include "scene_settings.glsl"
 
 layout(set = 1, binding = 0, std140) uniform ModelSettings {
   mat4 model;

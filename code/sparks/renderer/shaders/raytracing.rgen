@@ -1,0 +1,43 @@
+#version 460
+#extension GL_EXT_ray_tracing : enable
+
+#define SCENE_SETTINGS_SET 0
+#include "scene_settings.glsl"
+
+layout(set = 1, binding = 0) uniform accelerationStructureEXT scene;
+layout(set = 1, binding = 1, std430) buffer VertexBuffers {
+  float vertex_data[];
+}
+vertex_buffers[];
+layout(set = 1, binding = 2, std430) buffer IndexBuffers {
+  uint index[];
+}
+index_buffers[];
+
+layout(set = 2, binding = 0, rgba8) uniform image2D result_image;
+
+layout(location = 0) rayPayloadEXT vec3 colorValue;
+
+void main() {
+  const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
+  const vec2 inUV = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
+  vec2 d = inUV * 2.0 - 1.0;
+  mat4 proj = scene_settings.projection;
+  proj[0][0] = 1.0 / proj[0][0];
+  proj[1][1] = 1.0 / proj[1][1];
+
+  vec4 origin = scene_settings.camera_to_world[3];  // * vec4(0, 0, 0, 1);
+  vec4 target = vec4(d.x, -d.y, 0, 1) * proj;
+  vec4 direction =
+      scene_settings.camera_to_world * vec4(normalize(target.xyz), 0);
+
+  float tmin = 0.001;
+  float tmax = 10000.0;
+
+  colorValue = vec3(0.0);
+
+  traceRayEXT(scene, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, tmin,
+              direction.xyz, tmax, 0);
+
+  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy), vec4(colorValue, 1.0));
+}

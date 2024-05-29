@@ -34,6 +34,8 @@ class Application {
   void DestroyAssetManager();
   void DestroyRenderer();
 
+  void ImGui();
+
   AppSettings settings_{};
   GLFWwindow *window_{};
 
@@ -45,8 +47,11 @@ class Application {
   std::unique_ptr<AssetManager> asset_manager_;
   std::unique_ptr<Renderer> renderer_;
   std::unique_ptr<Film> film_;
+  std::unique_ptr<RayTracingFilm> raytracing_film_;
   std::unique_ptr<Scene> scene_;
   std::unique_ptr<CameraController> camera_controller_;
+
+  int output_frame_{0};
 };
 
 }  // namespace sparks

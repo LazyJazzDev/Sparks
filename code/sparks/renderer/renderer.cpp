@@ -5,7 +5,9 @@
 namespace sparks {
 
 namespace {
+
 #include "built_in_shaders.inl"
+
 }
 
 Renderer::Renderer(vulkan::Core *core) : core_(core) {
@@ -13,9 +15,11 @@ Renderer::Renderer(vulkan::Core *core) : core_(core) {
   CreateRenderPass();
   CreateEnvmapPipeline();
   CreateEntityPipeline();
+  CreateRayTracingPipeline();
 }
 
 Renderer::~Renderer() {
+  DestroyRayTracingPipeline();
   DestroyEntityPipeline();
   DestroyEnvmapPipeline();
   DestroyRenderPass();
@@ -32,8 +36,8 @@ void Renderer::CreateDescriptorSetLayouts() {
   VkSampler sampler = sampler_->Handle();
 
   core_->Device()->CreateDescriptorSetLayout(
-      {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT,
-        nullptr}},
+      {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr}},
       &scene_descriptor_set_layout_);
   core_->Device()->CreateDescriptorSetLayout(
       {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -211,6 +215,62 @@ void Renderer::DestroyEntityPipeline() {
   entity_pipeline_layout_.reset();
 }
 
+void Renderer::CreateRayTracingPipeline() {
+  core_->Device()->CreateDescriptorSetLayout(
+      {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,
+        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
+       {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8192,
+        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
+       {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8192,
+        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr}},
+      &raytracing_descriptor_set_layout_);
+
+  core_->Device()->CreateDescriptorSetLayout(
+      {{0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+        nullptr}},
+      &raytracing_film_descriptor_set_layout_);
+
+  core_->Device()->CreatePipelineLayout(
+      {scene_descriptor_set_layout_->Handle(),
+       raytracing_descriptor_set_layout_->Handle(),
+       raytracing_film_descriptor_set_layout_->Handle()},
+      &raytracing_pipeline_layout_);
+
+  core_->Device()->CreateShaderModule(
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/raytracing.rgen"),
+                                 VK_SHADER_STAGE_RAYGEN_BIT_KHR),
+      &raytracing_raygen_shader_);
+
+  core_->Device()->CreateShaderModule(
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/raytracing.rmiss"),
+                                 VK_SHADER_STAGE_MISS_BIT_KHR),
+      &raytracing_miss_shader_);
+
+  core_->Device()->CreateShaderModule(
+      vulkan::CompileGLSLToSPIRV(GetShaderCode("shaders/raytracing.rchit"),
+                                 VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR),
+      &raytracing_closest_hit_shader_);
+
+  core_->Device()->CreateRayTracingPipeline(
+      raytracing_pipeline_layout_.get(), raytracing_raygen_shader_.get(),
+      raytracing_miss_shader_.get(), raytracing_closest_hit_shader_.get(),
+      &raytracing_pipeline_);
+
+  core_->Device()->CreateShaderBindingTable(raytracing_pipeline_.get(),
+                                            &raytracing_sbt_);
+}
+
+void Renderer::DestroyRayTracingPipeline() {
+  raytracing_sbt_.reset();
+  raytracing_pipeline_.reset();
+  raytracing_closest_hit_shader_.reset();
+  raytracing_miss_shader_.reset();
+  raytracing_raygen_shader_.reset();
+  raytracing_pipeline_layout_.reset();
+  raytracing_film_descriptor_set_layout_.reset();
+  raytracing_descriptor_set_layout_.reset();
+}
+
 int Renderer::CreateScene(AssetManager *asset_manager,
                           int max_entities,
                           double_ptr<class Scene> pp_scene) {
@@ -248,6 +308,37 @@ int Renderer::CreateFilm(uint32_t width,
        film.normal_image->ImageView(), film.intensity_image->ImageView(),
        film.depth_image->ImageView()},
       VkExtent2D{width, height}, &film.framebuffer);
+  pp_film.construct(std::move(film));
+  return 0;
+}
+
+int Renderer::CreateRayTracingFilm(uint32_t width,
+                                   uint32_t height,
+                                   double_ptr<RayTracingFilm> pp_film) {
+  RayTracingFilm film;
+
+  film.renderer = this;
+
+  Core()->Device()->CreateImage(
+      VK_FORMAT_R8G8B8A8_UNORM, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.result_image);
+  Core()->Device()->CreateDescriptorPool(
+      raytracing_film_descriptor_set_layout_->GetPoolSize(), 1,
+      &film.descriptor_pool);
+  film.descriptor_pool->AllocateDescriptorSet(
+      raytracing_film_descriptor_set_layout_->Handle(), &film.descriptor_set);
+  film.descriptor_set->BindStorageImage(0, film.result_image.get());
+
+  Core()->SingleTimeCommands([image = film.result_image->Handle()](
+                                 VkCommandBuffer cmd_buffer) {
+    vulkan::TransitImageLayout(
+        cmd_buffer, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+  });
+
   pp_film.construct(std::move(film));
   return 0;
 }
@@ -302,5 +393,59 @@ void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
   scene->DrawEntities(cmd_buffer, core_->CurrentFrame());
 
   vkCmdEndRenderPass(cmd_buffer);
+}
+
+void Renderer::RenderSceneRayTracing(VkCommandBuffer cmd_buffer,
+                                     RayTracingFilm *film,
+                                     sparks::Scene *scene) {
+  vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                    raytracing_pipeline_->Handle());
+
+  VkDescriptorSet descriptor_sets[] = {
+      scene->SceneSettingsDescriptorSet(core_->CurrentFrame()),
+      scene->RayTracingDescriptorSet(core_->CurrentFrame()),
+      film->descriptor_set->Handle()};
+
+  vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+                          raytracing_pipeline_layout_->Handle(), 0, 3,
+                          descriptor_sets, 0, nullptr);
+
+  auto aligned_size = [](uint32_t value, uint32_t alignment) {
+    return (value + alignment - 1) & ~(alignment - 1);
+  };
+
+  VkPhysicalDeviceRayTracingPipelinePropertiesKHR
+      ray_tracing_pipeline_properties =
+          core_->Device()
+              ->PhysicalDevice()
+              .GetPhysicalDeviceRayTracingPipelineProperties();
+
+  const uint32_t handle_size_aligned =
+      aligned_size(ray_tracing_pipeline_properties.shaderGroupHandleSize,
+                   ray_tracing_pipeline_properties.shaderGroupHandleAlignment);
+
+  VkStridedDeviceAddressRegionKHR ray_gen_shader_sbt_entry{};
+  ray_gen_shader_sbt_entry.deviceAddress =
+      raytracing_sbt_->GetRayGenDeviceAddress();
+  ray_gen_shader_sbt_entry.stride = handle_size_aligned;
+  ray_gen_shader_sbt_entry.size = handle_size_aligned;
+
+  VkStridedDeviceAddressRegionKHR miss_shader_sbt_entry{};
+  miss_shader_sbt_entry.deviceAddress = raytracing_sbt_->GetMissDeviceAddress();
+  miss_shader_sbt_entry.stride = handle_size_aligned;
+  miss_shader_sbt_entry.size = handle_size_aligned;
+
+  VkStridedDeviceAddressRegionKHR hit_shader_sbt_entry{};
+  hit_shader_sbt_entry.deviceAddress =
+      raytracing_sbt_->GetClosestHitDeviceAddress();
+  hit_shader_sbt_entry.stride = handle_size_aligned;
+  hit_shader_sbt_entry.size = handle_size_aligned;
+
+  VkStridedDeviceAddressRegionKHR callable_shader_sbt_entry{};
+  core_->Device()->Procedures().vkCmdTraceRaysKHR(
+      cmd_buffer, &ray_gen_shader_sbt_entry, &miss_shader_sbt_entry,
+      &hit_shader_sbt_entry, &callable_shader_sbt_entry,
+      film->result_image->Extent().width, film->result_image->Extent().height,
+      1);
 }
 }  // namespace sparks
