@@ -22,24 +22,36 @@ Texture::Texture(uint32_t width,
   pixels_ = pixels;
 }
 
-int Texture::LoadFromFile(const std::string &file_path) {
+int Texture::LoadFromFile(const std::string &file_path,
+                          LDRColorSpace ldr_color_space) {
+  float restore_gamma = stbi__l2h_gamma;
+  switch (ldr_color_space) {
+    case LDRColorSpace::SRGB:
+      stbi_ldr_to_hdr_gamma(2.2f);
+      break;
+    case LDRColorSpace::UNORM:
+      stbi_ldr_to_hdr_gamma(1.0f);
+      break;
+  }
+
   float *pixels =
       stbi_loadf(file_path.c_str(), reinterpret_cast<int *>(&width_),
                  reinterpret_cast<int *>(&height_), nullptr, 4);
+  stbi_ldr_to_hdr_gamma(restore_gamma);
   if (!pixels) {
     return -1;
   }
   pixels_.resize(width_ * height_);
   for (int i = 0; i < width_ * height_; i++) {
-    pixels_[i] = glm::pow(glm::vec4(pixels[i * 4], pixels[i * 4 + 1],
-                                    pixels[i * 4 + 2], pixels[i * 4 + 3]),
-                          glm::vec4{1.0f / 2.2f});
+    pixels_[i] = glm::vec4{pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2],
+                           pixels[i * 4 + 3]};
   }
   stbi_image_free(pixels);
   return 0;
 }
 
-int Texture::SaveToFile(const std::string &file_path) const {
+int Texture::SaveToFile(const std::string &file_path,
+                        LDRColorSpace ldr_color_space) const {
   // If ends with .hdr
   if (file_path.size() >= 4 &&
       file_path.substr(file_path.size() - 4) == ".hdr") {
@@ -52,7 +64,7 @@ int Texture::SaveToFile(const std::string &file_path) const {
     }
     stbi_write_hdr(file_path.c_str(), width_, height_, 4, float_pixels.data());
   } else {
-    std::vector<uint8_t> byte_pixels = ConvertTexture(*this);
+    std::vector<uint8_t> byte_pixels = ConvertTexture(*this, ldr_color_space);
     if (file_path.size() >= 4 &&
         file_path.substr(file_path.size() - 4) == ".png") {
       stbi_write_png(file_path.c_str(), width_, height_, 4, byte_pixels.data(),
@@ -136,18 +148,26 @@ glm::vec4 Texture::Sample(float u, float v, AddressMode address_mode) const {
          Fetch(x + 1, y + 1, address_mode) * rx * ry;
 }
 
-uint8_t FloatToByte(float value) {
+uint8_t FloatToByte(float value, LDRColorSpace ldr_color_space) {
+  switch (ldr_color_space) {
+    case LDRColorSpace::SRGB:
+      value = std::pow(value, 1.0f / 2.2f);
+      break;
+    default:
+      break;
+  }
   return static_cast<uint8_t>(
       glm::clamp(static_cast<int>(value * 255.0f), 0, 255));
 }
 
-std::vector<uint8_t> ConvertTexture(const Texture &texture) {
+std::vector<uint8_t> ConvertTexture(const Texture &texture,
+                                    LDRColorSpace ldr_color_space) {
   std::vector<uint8_t> result(texture.Width() * texture.Height() * 4);
   for (int i = 0; i < texture.Width() * texture.Height(); i++) {
-    result[i * 4] = FloatToByte(texture.Data()[i].r);
-    result[i * 4 + 1] = FloatToByte(texture.Data()[i].g);
-    result[i * 4 + 2] = FloatToByte(texture.Data()[i].b);
-    result[i * 4 + 3] = FloatToByte(texture.Data()[i].a);
+    result[i * 4] = FloatToByte(texture.Data()[i].r, ldr_color_space);
+    result[i * 4 + 1] = FloatToByte(texture.Data()[i].g, ldr_color_space);
+    result[i * 4 + 2] = FloatToByte(texture.Data()[i].b, ldr_color_space);
+    result[i * 4 + 3] = FloatToByte(texture.Data()[i].a, ldr_color_space);
   }
   return result;
 }

@@ -1,5 +1,8 @@
 #include "sparks/app/app.h"
 
+#include <stb_image.h>
+#include <stb_image_write.h>
+
 #include "glm/gtc/matrix_transform.hpp"
 
 namespace sparks {
@@ -59,15 +62,15 @@ void Application::OnInit() {
   CreateRenderer();
   LoadScene();
 
-  //  Texture skybox[5];
-  //  skybox[0].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox0.bmp"));
-  //  skybox[1].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox1.bmp"));
-  //  skybox[2].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox2.bmp"));
-  //  skybox[3].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox3.bmp"));
-  //  skybox[4].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox4.bmp"));
-  //  Texture envmap = SkyBoxToEnvmap(
-  //      {&skybox[0], &skybox[1], &skybox[2], &skybox[3], &skybox[4]}, 2048);
-  //  envmap.SaveToFile("envmap.png");
+  // Texture skybox[5];
+  // skybox[0].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox0.bmp"));
+  // skybox[1].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox1.bmp"));
+  // skybox[2].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox2.bmp"));
+  // skybox[3].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox3.bmp"));
+  // skybox[4].LoadFromFile(FindAssetsFile("texture/terrain/SkyBox/SkyBox4.bmp"));
+  // Texture envmap = SkyBoxToEnvmap(
+  //     {&skybox[0], &skybox[1], &skybox[2], &skybox[3], &skybox[4]}, 2048);
+  // envmap.SaveToFile("envmap.png");
 }
 
 void Application::OnClose() {
@@ -242,17 +245,19 @@ void Application::LoadScene() {
   auto envmap = scene_->GetEnvMap();
 
   Texture envmap_texture;
-  envmap_texture.LoadFromFile(FindAssetsFile("texture/terrain/envmap.png"));
+  envmap_texture.LoadFromFile(FindAssetsFile("texture/terrain/envmap.png"),
+                              LDRColorSpace::UNORM);
   auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
   envmap->SetEnvmapTexture(envmap_id);
 
   Texture terrain_texture;
   terrain_texture.LoadFromFile(
-      FindAssetsFile("texture/terrain/terrain-texture3.bmp"));
+      FindAssetsFile("texture/terrain/terrain-texture3.bmp"),
+      LDRColorSpace::UNORM);
 
   Texture terrain_detail_texture;
   terrain_detail_texture.LoadFromFile(
-      FindAssetsFile("texture/terrain/detail.bmp"));
+      FindAssetsFile("texture/terrain/detail.bmp"), LDRColorSpace::UNORM);
   auto terrain_texture_id =
       asset_manager->LoadTexture(terrain_texture, "TerrainTexture");
   auto terrain_detail_texture_id = asset_manager->LoadTexture(
@@ -263,7 +268,7 @@ void Application::LoadScene() {
 
   Texture heightmap_texture;
   heightmap_texture.LoadFromFile(
-      FindAssetsFile("texture/terrain/heightmap.bmp"));
+      FindAssetsFile("texture/terrain/heightmap.bmp"), LDRColorSpace::UNORM);
   Mesh terrain_mesh;
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
@@ -279,7 +284,8 @@ void Application::LoadScene() {
 
   Texture water_texture;
   water_texture.LoadFromFile(
-      FindAssetsFile("texture/terrain/SkyBox/SkyBox5.bmp"));
+      FindAssetsFile("texture/terrain/SkyBox/SkyBox5.bmp"),
+      LDRColorSpace::SRGB);
   auto water_texture_id =
       asset_manager->LoadTexture(water_texture, "WaterTexture");
   int water_entity_id = scene_->CreateEntity();

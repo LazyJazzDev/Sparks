@@ -3,7 +3,6 @@
 #include "sparks/utils/utils.h"
 
 namespace sparks {
-
 enum class AddressMode {
   Repeat,
   ClampToEdge,
@@ -11,6 +10,8 @@ enum class AddressMode {
   BlackBorder,
   WhiteBorder
 };
+
+enum class LDRColorSpace { SRGB, UNORM };
 
 class Texture {
  public:
@@ -22,9 +23,10 @@ class Texture {
           uint32_t height,
           const std::vector<glm::vec4> &pixels);
 
-  int LoadFromFile(const std::string &file_path);
+  int LoadFromFile(const std::string &file_path, LDRColorSpace ldr_color_space);
 
-  int SaveToFile(const std::string &file_path) const;
+  int SaveToFile(const std::string &file_path,
+                 LDRColorSpace ldr_color_space) const;
 
   uint32_t Width() const {
     return width_;
@@ -61,9 +63,10 @@ class Texture {
   uint32_t height_{};
 };
 
-uint8_t FloatToByte(float value);
+uint8_t FloatToByte(float value, LDRColorSpace ldr_color_space);
 
-std::vector<uint8_t> ConvertTexture(const Texture &texture);
+std::vector<uint8_t> ConvertTexture(const Texture &texture,
+                                    LDRColorSpace ldr_color_space);
 
 glm::vec4 SampleSkyBox(const std::vector<const Texture *> &sky_box,
                        const glm::vec3 &direction);
