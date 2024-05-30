@@ -12,7 +12,7 @@ EnvMap::EnvMap(Scene *scene) : scene_(scene) {
 
   descriptor_sets_.resize(scene_->Renderer()->Core()->MaxFramesInFlight());
 
-  auto asset_manager = scene_->AssetManager();
+  auto asset_manager = scene_->Renderer()->AssetManager();
 
   for (size_t i = 0; i < descriptor_sets_.size(); ++i) {
     scene_->DescriptorPool()->AllocateDescriptorSet(
@@ -40,7 +40,7 @@ void EnvMap::Sync(VkCommandBuffer cmd_buffer, int frame_id) {
 
 void EnvMap::SetEnvmapTexture(uint32_t envmap_id) {
   scene_->Renderer()->Core()->Device()->WaitIdle();
-  auto asset_manager = scene_->AssetManager();
+  auto asset_manager = scene_->Renderer()->AssetManager();
   auto texture = asset_manager->GetTexture(envmap_id);
   for (size_t i = 0; i < descriptor_sets_.size(); ++i) {
     descriptor_sets_[i]->BindCombinedImageSampler(1, texture->image_.get());

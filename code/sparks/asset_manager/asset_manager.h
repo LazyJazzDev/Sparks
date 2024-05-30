@@ -7,9 +7,9 @@
 namespace sparks {
 class AssetManager {
  public:
-  AssetManager(vulkan::Core *core);
+  AssetManager(vulkan::Core *core, uint32_t max_textures, uint32_t max_meshes);
 
-  ~AssetManager() = default;
+  ~AssetManager();
 
   int LoadTexture(const Texture &texture, std::string name = "Unnamed Texture");
 
@@ -18,6 +18,10 @@ class AssetManager {
   TextureAsset *GetTexture(uint32_t id);
 
   MeshAsset *GetMesh(uint32_t id);
+
+  uint32_t GetTextureBindingId(uint32_t id);
+
+  uint32_t GetMeshBindingId(uint32_t id);
 
   void DestroyTexture(uint32_t id);
 
@@ -29,15 +33,42 @@ class AssetManager {
     return core_;
   }
 
-  std::set<uint32_t> GetTextureIds() const;
+  std::set<uint32_t> GetTextureIds();
 
-  std::set<uint32_t> GetMeshIds() const;
+  std::set<uint32_t> GetMeshIds();
+
+  vulkan::DescriptorSetLayout *DescriptorSetLayout() {
+    return descriptor_set_layout_.get();
+  }
+
+  VkDescriptorSet DescriptorSet(uint32_t frame_id) {
+    return descriptor_sets_[frame_id]->Handle();
+  }
+
+  void Update(uint32_t frame_id);
 
  private:
+  void CreateDefaultAssets();
+  void CreateDescriptorObjects(uint32_t max_textures, uint32_t max_meshes);
+
+  void DestroyDefaultAssets();
+  void DestroyDescriptorObjects();
+
+  void UpdateMeshDataBindings(uint32_t frame_id);
+  void UpdateTextureBindings(uint32_t frame_id);
+
   vulkan::Core *core_;
   uint32_t next_mesh_id_{};
   uint32_t next_texture_id_{};
-  std::map<uint32_t, std::unique_ptr<TextureAsset>> textures_;
-  std::map<uint32_t, std::unique_ptr<MeshAsset>> meshes_;
+  std::map<uint32_t, std::pair<uint32_t, std::unique_ptr<TextureAsset>>>
+      textures_;
+  std::map<uint32_t, std::pair<uint32_t, std::unique_ptr<MeshAsset>>> meshes_;
+
+  std::unique_ptr<vulkan::DescriptorSetLayout> descriptor_set_layout_;
+  std::unique_ptr<vulkan::DescriptorPool> descriptor_pool_;
+  std::vector<std::unique_ptr<vulkan::DescriptorSet>> descriptor_sets_;
+
+  std::unique_ptr<vulkan::Sampler> linear_sampler_;
+  std::unique_ptr<vulkan::Sampler> nearest_sampler_;
 };
 }  // namespace sparks

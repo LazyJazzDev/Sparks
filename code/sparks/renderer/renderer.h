@@ -9,7 +9,7 @@
 namespace sparks {
 class Renderer {
  public:
-  Renderer(vulkan::Core *core);
+  Renderer(class AssetManager *asset_manager);
 
   ~Renderer();
 
@@ -17,9 +17,11 @@ class Renderer {
     return core_;
   }
 
-  int CreateScene(AssetManager *asset_manager,
-                  int max_entities,
-                  double_ptr<struct Scene> pp_scene);
+  class AssetManager *AssetManager() {
+    return asset_manager_;
+  }
+
+  int CreateScene(int max_entities, double_ptr<class Scene> pp_scene);
 
   vulkan::DescriptorSetLayout *SceneDescriptorSetLayout() {
     return scene_descriptor_set_layout_.get();
@@ -100,7 +102,8 @@ class Renderer {
 
   void DestroyRayTracingPipeline();
 
-  vulkan::Core *core_;
+  vulkan::Core *core_{};
+  class AssetManager *asset_manager_{};
   std::unique_ptr<vulkan::DescriptorSetLayout> scene_descriptor_set_layout_;
   std::unique_ptr<vulkan::RenderPass> render_pass_;
 

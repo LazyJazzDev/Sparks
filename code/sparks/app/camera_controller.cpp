@@ -30,12 +30,13 @@ void CameraController::Update(float delta_time) {
   auto &io = ImGui::GetIO();
   if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) &&
       !io.WantCaptureMouse) {
-    auto &euler_angles = camera_->GetEulerAngles();
+    auto euler_angles = camera_->GetEulerAngles();
     euler_angles.x -= delta_angle.y;
     euler_angles.y -= delta_angle.x;
     euler_angles.x = glm::clamp(euler_angles.x, -glm::half_pi<float>(),
                                 glm::half_pi<float>());
     euler_angles.y = glm::mod(euler_angles.y, glm::two_pi<float>());
+    camera_->SetEulerAngles(euler_angles);
   }
 
   glm::vec3 move_dir{0.0f};
@@ -57,7 +58,8 @@ void CameraController::Update(float delta_time) {
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
     move_dir += y_axis;
   }
-  camera_->GetPosition() += move_dir * 0.1f * delta_time;
+
+  camera_->SetPosition(camera_->GetPosition() + move_dir * 0.1f * delta_time);
 }
 
 }  // namespace sparks

@@ -10,7 +10,8 @@ namespace {
 
 }
 
-Renderer::Renderer(vulkan::Core *core) : core_(core) {
+Renderer::Renderer(class AssetManager *asset_manager)
+    : core_(asset_manager->Core()), asset_manager_(asset_manager) {
   CreateDescriptorSetLayouts();
   CreateRenderPass();
   CreateEnvmapPipeline();
@@ -48,9 +49,11 @@ void Renderer::CreateDescriptorSetLayouts() {
   core_->Device()->CreateDescriptorSetLayout(
       {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-       {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-        VK_SHADER_STAGE_FRAGMENT_BIT, &sampler},
+       {1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+        VK_SHADER_STAGE_FRAGMENT_BIT, &sampler},
+       {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
         VK_SHADER_STAGE_FRAGMENT_BIT, &sampler}},
       &entity_descriptor_set_layout_);
 }
@@ -218,10 +221,6 @@ void Renderer::DestroyEntityPipeline() {
 void Renderer::CreateRayTracingPipeline() {
   core_->Device()->CreateDescriptorSetLayout(
       {{0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,
-        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
-       {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8192,
-        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
-       {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 8192,
         VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr}},
       &raytracing_descriptor_set_layout_);
 
@@ -233,6 +232,7 @@ void Renderer::CreateRayTracingPipeline() {
   core_->Device()->CreatePipelineLayout(
       {scene_descriptor_set_layout_->Handle(),
        raytracing_descriptor_set_layout_->Handle(),
+       asset_manager_->DescriptorSetLayout()->Handle(),
        raytracing_film_descriptor_set_layout_->Handle()},
       &raytracing_pipeline_layout_);
 
@@ -271,10 +271,8 @@ void Renderer::DestroyRayTracingPipeline() {
   raytracing_descriptor_set_layout_.reset();
 }
 
-int Renderer::CreateScene(AssetManager *asset_manager,
-                          int max_entities,
-                          double_ptr<class Scene> pp_scene) {
-  pp_scene.construct(this, asset_manager, max_entities);
+int Renderer::CreateScene(int max_entities, double_ptr<class Scene> pp_scene) {
+  pp_scene.construct(this, max_entities);
   return 0;
 }
 
@@ -401,14 +399,16 @@ void Renderer::RenderSceneRayTracing(VkCommandBuffer cmd_buffer,
   vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                     raytracing_pipeline_->Handle());
 
-  VkDescriptorSet descriptor_sets[] = {
+  std::vector<VkDescriptorSet> descriptor_sets{
       scene->SceneSettingsDescriptorSet(core_->CurrentFrame()),
       scene->RayTracingDescriptorSet(core_->CurrentFrame()),
+      scene->Renderer()->AssetManager()->DescriptorSet(core_->CurrentFrame()),
       film->descriptor_set->Handle()};
 
   vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                          raytracing_pipeline_layout_->Handle(), 0, 3,
-                          descriptor_sets, 0, nullptr);
+                          raytracing_pipeline_layout_->Handle(), 0,
+                          descriptor_sets.size(), descriptor_sets.data(), 0,
+                          nullptr);
 
   auto aligned_size = [](uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);

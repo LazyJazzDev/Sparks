@@ -12,15 +12,19 @@ layout(location = 1) out vec4 out_position;
 layout(location = 2) out vec4 out_normal;
 layout(location = 3) out vec4 out_intensity;
 
-layout(set = 1, binding = 0, std140) uniform ModelSettings {
-  mat4 model;
-  vec4 detail_scale_offset;
-  vec4 color;
-}
-model_settings;
+#include "entity_metadata.glsl"
+#include "material.glsl"
 
-layout(set = 1, binding = 1) uniform sampler2D albedo_map;
-layout(set = 1, binding = 2) uniform sampler2D detail_map;
+layout(set = 1, binding = 0, std140) uniform EntityMetadataUniform {
+  EntityMetadata metadata;
+};
+
+layout(set = 1, binding = 1, std140) uniform EntityMaterialUniform {
+  Material material;
+};
+
+layout(set = 1, binding = 2) uniform sampler2D albedo_map;
+layout(set = 1, binding = 3) uniform sampler2D detail_map;
 
 void main() {
   if (in_signal * in_pos.y < 0.0) {
@@ -29,8 +33,8 @@ void main() {
 
   vec3 color =
       texture(albedo_map, in_tex_coord).rgb *
-      texture(detail_map, in_tex_coord * model_settings.detail_scale_offset.xy +
-                              model_settings.detail_scale_offset.zw)
+      texture(detail_map, in_tex_coord * material.detail_scale_offset.xy +
+                              material.detail_scale_offset.zw)
           .rgb;
   vec3 normal = normalize(in_normal);
   vec3 tangent = normalize(in_tangent);
@@ -42,5 +46,5 @@ void main() {
   out_albedo = vec4(1.0);
   out_position = vec4(in_pos, 0.0);
   out_normal = vec4(normal, 0.0);
-  out_intensity = vec4(color, 1.0) * model_settings.color;
+  out_intensity = vec4(color * material.base_color, material.alpha);
 }

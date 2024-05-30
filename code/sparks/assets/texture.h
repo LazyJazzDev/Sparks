@@ -23,10 +23,11 @@ class Texture {
           uint32_t height,
           const std::vector<glm::vec4> &pixels);
 
-  int LoadFromFile(const std::string &file_path, LDRColorSpace ldr_color_space);
+  int LoadFromFile(const std::string &file_path,
+                   LDRColorSpace ldr_color_space = LDRColorSpace::SRGB);
 
   int SaveToFile(const std::string &file_path,
-                 LDRColorSpace ldr_color_space) const;
+                 LDRColorSpace ldr_color_space = LDRColorSpace::SRGB) const;
 
   uint32_t Width() const {
     return width_;

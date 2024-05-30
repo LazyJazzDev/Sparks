@@ -3,10 +3,8 @@
 #include "sparks/renderer/renderer.h"
 
 namespace sparks {
-Scene::Scene(struct Renderer *renderer,
-             struct AssetManager *asset_manager,
-             int max_entities)
-    : renderer_(renderer), asset_manager_(asset_manager) {
+Scene::Scene(struct Renderer *renderer, int max_entities)
+    : renderer_(renderer) {
   vulkan::DescriptorPoolSize pool_size;
   pool_size = pool_size + renderer_->SceneDescriptorSetLayout()->GetPoolSize() *
                               renderer_->Core()->MaxFramesInFlight();
@@ -67,6 +65,7 @@ int Scene::CreateEntity(Entity **pp_entity) {
   if (pp_entity) {
     *pp_entity = entities_[next_entity_id_].get();
   }
+  entities_[next_entity_id_]->metadata_.entity_id = next_entity_id_;
   return next_entity_id_++;
 }
 
@@ -85,9 +84,9 @@ void Scene::Update(float delta_time) {
   std::vector<std::pair<vulkan::AccelerationStructure *, glm::mat4>> instances;
   for (auto &entity : entities_) {
     uint32_t mesh_id = entity.second->MeshId();
-    auto mesh = asset_manager_->GetMesh(mesh_id);
-    glm::mat4 transform = entity.second->GetMaterial().model;
-    instances.emplace_back(mesh->blas_.get(), transform);
+    auto mesh = renderer_->AssetManager()->GetMesh(mesh_id);
+    instances.emplace_back(mesh->blas_.get(),
+                           entity.second->metadata_.transform);
   }
   static int last_num_instances = -1;
   if (last_num_instances != instances.size()) {
@@ -103,18 +102,18 @@ void Scene::Update(float delta_time) {
 
   std::vector<const vulkan::Buffer *> vertex_buffers;
   std::vector<const vulkan::Buffer *> index_buffers;
-  for (auto mesh_id : asset_manager_->GetMeshIds()) {
-    auto mesh = asset_manager_->GetMesh(mesh_id);
+  for (auto mesh_id : renderer_->AssetManager()->GetMeshIds()) {
+    auto mesh = renderer_->AssetManager()->GetMesh(mesh_id);
     vertex_buffers.push_back(mesh->vertex_buffer_->GetBuffer());
     index_buffers.push_back(mesh->index_buffer_->GetBuffer());
   }
 
   raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
       ->BindAccelerationStructure(0, top_level_as_.get());
-  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
-      ->BindStorageBuffers(1, vertex_buffers);
-  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
-      ->BindStorageBuffers(2, index_buffers);
+  //        raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
+  //                ->BindStorageBuffers(1, vertex_buffers);
+  //        raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
+  //                ->BindStorageBuffers(2, index_buffers);
 }
 
 void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
@@ -154,7 +153,7 @@ void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {
                             descriptor_sets, 0, nullptr);
 
     uint32_t mesh_id = entity.second->MeshId();
-    auto mesh = asset_manager_->GetMesh(mesh_id);
+    auto mesh = renderer_->AssetManager()->GetMesh(mesh_id);
     VkBuffer vertex_buffers[] = {
         mesh->vertex_buffer_->GetBuffer(frame_id)->Handle()};
     VkDeviceSize offsets[] = {0};
@@ -164,5 +163,37 @@ void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {
                          VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(cmd_buffer, mesh->index_buffer_->Length(), 2, 0, 0, 0);
   }
+}
+
+int Scene::SetEntityTransform(uint32_t entity_id, const glm::mat4 &transform) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->metadata_.transform = transform;
+  return 0;
+}
+
+int Scene::GetEntityTransform(uint32_t entity_id, glm::mat4 &transform) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  transform = entities_.at(entity_id)->metadata_.transform;
+  return 0;
+}
+
+int Scene::SetEntityMaterial(uint32_t entity_id, const Material &material) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->material_ = material;
+  return 0;
+}
+
+int Scene::GetEntityMaterial(uint32_t entity_id, Material &material) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  material = entities_.at(entity_id)->material_;
+  return 0;
 }
 }  // namespace sparks

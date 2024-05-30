@@ -13,18 +13,12 @@
 namespace sparks {
 class Scene {
  public:
-  Scene(class Renderer *renderer,
-        class AssetManager *asset_manager,
-        int max_entities);
+  Scene(struct Renderer *renderer, int max_entities);
 
   ~Scene();
 
   class Renderer *Renderer() {
     return renderer_;
-  }
-
-  class AssetManager *AssetManager() {
-    return asset_manager_;
   }
 
   class Camera *Camera() {
@@ -69,12 +63,18 @@ class Scene {
     return raytracing_descriptor_sets_[frame_id]->Handle();
   }
 
+  int SetEntityTransform(uint32_t entity_id, const glm::mat4 &transform);
+
+  int GetEntityTransform(uint32_t entity_id, glm::mat4 &transform) const;
+
+  int SetEntityMaterial(uint32_t entity_id, const Material &material);
+
+  int GetEntityMaterial(uint32_t entity_id, Material &material) const;
+
  private:
   void UpdateDynamicBuffers();
 
   class Renderer *renderer_{};
-
-  class AssetManager *asset_manager_{};
 
   std::unique_ptr<vulkan::DescriptorPool> descriptor_pool_{};
 

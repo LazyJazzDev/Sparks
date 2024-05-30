@@ -91,6 +91,8 @@ void Application::OnUpdate() {
   scene_->Update(delta_time);
   camera_controller_->Update(delta_time);
 
+  asset_manager_->Update(core_->CurrentFrame());
+
   imgui_manager_->BeginFrame();
   ImGui();
   asset_manager_->ImGui();
@@ -205,7 +207,7 @@ void Application::DestroyImGuiManager() {
 }
 
 void Application::CreateAssetManager() {
-  asset_manager_ = std::make_unique<AssetManager>(core_.get());
+  asset_manager_ = std::make_unique<AssetManager>(core_.get(), 8192, 8192);
 }
 
 void Application::DestroyAssetManager() {
@@ -213,7 +215,7 @@ void Application::DestroyAssetManager() {
 }
 
 void Application::CreateRenderer() {
-  renderer_ = std::make_unique<Renderer>(core_.get());
+  renderer_ = std::make_unique<Renderer>(asset_manager_.get());
   renderer_->CreateFilm(core_->Swapchain()->Extent().width,
                         core_->Swapchain()->Extent().height, &film_);
   renderer_->CreateRayTracingFilm(core_->Swapchain()->Extent().width,
@@ -223,7 +225,7 @@ void Application::CreateRenderer() {
     film_->Resize(width, height);
     raytracing_film_->Resize(width, height);
   });
-  renderer_->CreateScene(asset_manager_.get(), 2, &scene_);
+  renderer_->CreateScene(2, &scene_);
 
   camera_controller_ =
       std::make_unique<CameraController>(core_.get(), scene_->Camera());
@@ -238,7 +240,7 @@ void Application::DestroyRenderer() {
 }
 
 void Application::LoadScene() {
-  auto asset_manager = scene_->AssetManager();
+  auto asset_manager = scene_->Renderer()->AssetManager();
   scene_->Camera()->GetPosition() = glm::vec3{0.0f, 0.0f, 5.0f};
   int entity_id = scene_->CreateEntity();
   auto entity = scene_->GetEntity(entity_id);
@@ -273,10 +275,11 @@ void Application::LoadScene() {
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
   entity->SetMesh(terrain_mesh_id);
-  entity->GetMaterial().model =
-      glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -0.06f, 0.0f});
-  entity->GetMaterial().detail_scale_offset =
-      glm::vec4{20.0f, 20.0f, 0.0f, 0.0f};
+  scene_->SetEntityMaterial(
+      entity_id, {glm::vec3{1.0f}, 1.0f, {20.0f, 20.0f, 0.0f, 0.0f}});
+  scene_->SetEntityTransform(
+      entity_id,
+      glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -0.06f, 0.0f}));
 
   Mesh plane_mesh;
   plane_mesh.LoadObjFile(FindAssetsFile("mesh/plane.obj"));
@@ -285,33 +288,35 @@ void Application::LoadScene() {
   Texture water_texture;
   water_texture.LoadFromFile(
       FindAssetsFile("texture/terrain/SkyBox/SkyBox5.bmp"),
-      LDRColorSpace::SRGB);
+      LDRColorSpace::UNORM);
   auto water_texture_id =
       asset_manager->LoadTexture(water_texture, "WaterTexture");
   int water_entity_id = scene_->CreateEntity();
   auto water_entity = scene_->GetEntity(water_entity_id);
   water_entity->SetAlbedoDetailTexture(water_texture_id);
   water_entity->SetMesh(plane_mesh_id);
-  water_entity->GetMaterial().model =
-      glm::scale(glm::mat4{1.0f}, glm::vec3{100.0f});
-  water_entity->GetMaterial().detail_scale_offset =
-      glm::vec4{1000.0f, 1000.0f, 0.0f, 0.0f};
-  water_entity->GetMaterial().color = glm::vec4{1.5f, 1.5f, 1.5f, 0.5f};
+  scene_->SetEntityMaterial(
+      water_entity_id,
+      {{1.5f, 1.5f, 1.5f}, 0.5f, {1000.0f, 1000.0f, 0.0f, 0.0f}});
+  scene_->SetEntityTransform(water_entity_id,
+                             glm::scale(glm::mat4{1.0f}, glm::vec3{100.0f}));
 
-  scene_->Camera()->GetFar() = 10.0f;
-  scene_->Camera()->GetNear() = 0.01f;
-  scene_->Camera()->GetPosition() = glm::vec3{0.0f, 0.1f, 1.2f};
+  scene_->Camera()->SetFar(10.0f);
+  scene_->Camera()->SetNear(0.01f);
+  scene_->Camera()->SetPosition({0.0f, 0.1f, 1.2f});
 
   scene_->SetUpdateCallback([=](Scene *scene, float delta_time) {
-    auto water_entity = scene->GetEntity(water_entity_id);
+    Material material;
+    scene->GetEntityMaterial(water_entity_id, material);
     glm::vec2 speed{0.3f, 1.0f};
     speed *= delta_time * 0.1f;
-    water_entity->GetMaterial().detail_scale_offset.z += speed.x;
-    water_entity->GetMaterial().detail_scale_offset.w += speed.y;
-    water_entity->GetMaterial().detail_scale_offset.z =
-        glm::mod(water_entity->GetMaterial().detail_scale_offset.z, 1.0f);
-    water_entity->GetMaterial().detail_scale_offset.w =
-        glm::mod(water_entity->GetMaterial().detail_scale_offset.w, 1.0f);
+    material.detail_scale_offset.z += speed.x;
+    material.detail_scale_offset.w += speed.y;
+    material.detail_scale_offset.z =
+        glm::mod(material.detail_scale_offset.z, 1.0f);
+    material.detail_scale_offset.w =
+        glm::mod(material.detail_scale_offset.w, 1.0f);
+    scene->SetEntityMaterial(water_entity_id, material);
   });
 }
 

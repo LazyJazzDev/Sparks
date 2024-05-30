@@ -1,20 +1,28 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
 
-#define SCENE_SETTINGS_SET 0
 #include "scene_settings.glsl"
 
+layout(set = 0, binding = 0, std140) uniform SceneSettingsUniform {
+  SceneSettings scene_settings;
+};
+
 layout(set = 1, binding = 0) uniform accelerationStructureEXT scene;
-layout(set = 1, binding = 1, std430) buffer VertexBuffers {
+
+layout(set = 2, binding = 0, std430) buffer VertexBuffers {
   float vertex_data[];
 }
 vertex_buffers[];
-layout(set = 1, binding = 2, std430) buffer IndexBuffers {
+layout(set = 2, binding = 1, std430) buffer IndexBuffers {
   uint index[];
 }
 index_buffers[];
 
-layout(set = 2, binding = 0, rgba8) uniform image2D result_image;
+layout(set = 2, binding = 2) uniform sampler2D sampled_textures[];
+
+layout(set = 2, binding = 3) uniform sampler samplers[];
+
+layout(set = 3, binding = 0, rgba8) uniform image2D result_image;
 
 layout(location = 0) rayPayloadEXT vec3 colorValue;
 

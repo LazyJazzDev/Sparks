@@ -1,6 +1,9 @@
 #version 450
-#define SCENE_SETTINGS_SET 0
 #include "scene_settings.glsl"
+
+layout(set = 0, binding = 0, std140) uniform SceneSettingsUniform {
+  SceneSettings scene_settings;
+};
 
 const vec2[6] positions = vec2[6](vec2(-1.0, -1.0),
                                   vec2(1.0, -1.0),

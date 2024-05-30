@@ -1,54 +1,58 @@
 #pragma once
+
 #include "sparks/scene/scene_utils.h"
 
 namespace sparks {
 class Camera {
  public:
   Camera();
+
   ~Camera();
 
   glm::mat4 GetInverseView() const;
+
   glm::mat4 GetView() const;
+
   glm::mat4 GetProjection(float aspect) const;
 
-  glm::vec3 &GetPosition() {
+  glm::vec3 GetPosition() const {
     return position_;
   }
 
-  const glm::vec3 &GetPosition() const {
-    return position_;
+  void SetPosition(const glm::vec3 &position) {
+    position_ = position;
   }
 
-  glm::vec3 &GetEulerAngles() {
+  glm::vec3 GetEulerAngles() const {
     return euler_angles_;
   }  // pitch, yaw, roll
 
-  const glm::vec3 &GetEulerAngles() const {
-    return euler_angles_;
-  }  // pitch, yaw, roll
+  void SetEulerAngles(const glm::vec3 &euler_angles) {
+    euler_angles_ = euler_angles;
+  }
 
-  float &GetFov() {
+  float GetFov() const {
     return fov_;
   }
 
-  const float &GetFov() const {
-    return fov_;
+  void SetFov(float fov) {
+    fov_ = fov;
   }
 
-  float &GetNear() {
+  float GetNear() const {
     return near_;
   }
 
-  const float &GetNear() const {
-    return near_;
+  void SetNear(float nearf) {
+    near_ = nearf;
   }
 
-  float &GetFar() {
+  float GetFar() const {
     return far_;
   }
 
-  const float &GetFar() const {
-    return far_;
+  void SetFar(float farf) {
+    far_ = farf;
   }
 
  private:

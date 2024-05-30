@@ -1,14 +1,20 @@
 #version 450
 
-#define SCENE_SETTINGS_SET 0
+#include "entity_metadata.glsl"
+#include "material.glsl"
 #include "scene_settings.glsl"
 
-layout(set = 1, binding = 0, std140) uniform ModelSettings {
-  mat4 model;
-  vec4 detail_scale_offset;
-  vec4 color;
-}
-model_settings;
+layout(set = 0, binding = 0, std140) uniform SceneSettingsUniform {
+  SceneSettings scene_settings;
+};
+
+layout(set = 1, binding = 0, std140) uniform EntityMetadataUniform {
+  EntityMetadata metadata;
+};
+
+layout(set = 1, binding = 1, std140) uniform EntityMaterialUniform {
+  Material material;
+};
 
 layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec3 in_normal;
@@ -25,12 +31,12 @@ layout(location = 5) out float out_signal;
 
 void main() {
   out_signal = (gl_InstanceIndex == 1) ? -1.0 : 1.0;
-  out_pos = vec3(model_settings.model * vec4(in_pos, 1.0)) *
-            vec3(1.0, out_signal, 1.0);
-  out_normal = transpose(inverse(mat3(model_settings.model))) * in_normal;
-  out_tangent = mat3(model_settings.model) * in_tangent;
+  out_pos =
+      vec3(metadata.model * vec4(in_pos, 1.0)) * vec3(1.0, out_signal, 1.0);
+  out_normal = transpose(inverse(mat3(metadata.model))) * in_normal;
+  out_tangent = mat3(metadata.model) * in_tangent;
   out_bitangent =
-      mat3(model_settings.model) * (in_signal * cross(in_normal, in_tangent));
+      mat3(metadata.model) * (in_signal * cross(in_normal, in_tangent));
   out_tex_coord = in_tex_coord;
   gl_Position = (scene_settings.projection * scene_settings.world_to_camera *
                  vec4(out_pos, 1.0)) *
