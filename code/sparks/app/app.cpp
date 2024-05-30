@@ -242,8 +242,7 @@ void Application::DestroyRenderer() {
 void Application::LoadScene() {
   auto asset_manager = scene_->Renderer()->AssetManager();
   scene_->Camera()->GetPosition() = glm::vec3{0.0f, 0.0f, 5.0f};
-  int entity_id = scene_->CreateEntity();
-  auto entity = scene_->GetEntity(entity_id);
+
   auto envmap = scene_->GetEnvMap();
 
   Texture envmap_texture;
@@ -251,6 +250,8 @@ void Application::LoadScene() {
                               LDRColorSpace::UNORM);
   auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
   envmap->SetEnvmapTexture(envmap_id);
+
+  int entity_id = scene_->CreateEntity();
 
   Texture terrain_texture;
   terrain_texture.LoadFromFile(
@@ -265,8 +266,8 @@ void Application::LoadScene() {
   auto terrain_detail_texture_id = asset_manager->LoadTexture(
       terrain_detail_texture, "TerrainDetailTexture");
 
-  entity->SetAlbedoTexture(terrain_texture_id);
-  entity->SetAlbedoDetailTexture(terrain_detail_texture_id);
+  scene_->SetEntityAlbedoTexture(entity_id, terrain_texture_id);
+  scene_->SetEntityAlbedoDetailTexture(entity_id, terrain_detail_texture_id);
 
   Texture heightmap_texture;
   heightmap_texture.LoadFromFile(
@@ -274,7 +275,7 @@ void Application::LoadScene() {
   Mesh terrain_mesh;
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
-  entity->SetMesh(terrain_mesh_id);
+  scene_->SetEntityMesh(entity_id, terrain_mesh_id);
   scene_->SetEntityMaterial(
       entity_id, {glm::vec3{1.0f}, 1.0f, {20.0f, 20.0f, 0.0f, 0.0f}});
   scene_->SetEntityTransform(
@@ -292,9 +293,8 @@ void Application::LoadScene() {
   auto water_texture_id =
       asset_manager->LoadTexture(water_texture, "WaterTexture");
   int water_entity_id = scene_->CreateEntity();
-  auto water_entity = scene_->GetEntity(water_entity_id);
-  water_entity->SetAlbedoDetailTexture(water_texture_id);
-  water_entity->SetMesh(plane_mesh_id);
+  scene_->SetEntityAlbedoDetailTexture(water_entity_id, water_texture_id);
+  scene_->SetEntityMesh(water_entity_id, plane_mesh_id);
   scene_->SetEntityMaterial(
       water_entity_id,
       {{1.5f, 1.5f, 1.5f}, 0.5f, {1000.0f, 1000.0f, 0.0f, 0.0f}});

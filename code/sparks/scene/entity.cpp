@@ -44,25 +44,15 @@ void Entity::Sync(VkCommandBuffer cmd_buffer, int frame_id) {
   material_buffer_->SyncData(cmd_buffer, frame_id);
 }
 
-void Entity::SetAlbedoTexture(uint32_t texture_id) {
-  scene_->Renderer()->Core()->Device()->WaitIdle();
-  auto asset_manager = scene_->Renderer()->AssetManager();
-  auto texture = asset_manager->GetTexture(texture_id);
-  for (size_t i = 0; i < descriptor_sets_.size(); ++i) {
-    descriptor_sets_[i]->BindCombinedImageSampler(2, texture->image_.get());
-  }
-}
-
-void Entity::SetAlbedoDetailTexture(uint32_t texture_id) {
-  scene_->Renderer()->Core()->Device()->WaitIdle();
-  auto asset_manager = scene_->Renderer()->AssetManager();
-  auto texture = asset_manager->GetTexture(texture_id);
-  for (size_t i = 0; i < descriptor_sets_.size(); ++i) {
-    descriptor_sets_[i]->BindCombinedImageSampler(3, texture->image_.get());
-  }
-}
-
-void Entity::SetMesh(uint32_t mesh_id) {
-  mesh_id_ = mesh_id;
+EntityMetadata Entity::GetTranslatedMetadata() const {
+  AssetManager *asset_manager = scene_->Renderer()->AssetManager();
+  EntityMetadata metadata{};
+  metadata.transform = metadata_.transform;
+  metadata.entity_id = metadata_.entity_id;
+  metadata.albedo_texture_id =
+      asset_manager->GetTextureBindingId(metadata_.albedo_texture_id);
+  metadata.albedo_detail_texture_id =
+      asset_manager->GetTextureBindingId(metadata_.albedo_detail_texture_id);
+  return metadata;
 }
 }  // namespace sparks

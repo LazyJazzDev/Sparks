@@ -63,6 +63,8 @@ class Scene {
     return raytracing_descriptor_sets_[frame_id]->Handle();
   }
 
+  int SetEnvmapSettings(const EnvMapSettings &settings);
+
   int SetEntityTransform(uint32_t entity_id, const glm::mat4 &transform);
 
   int GetEntityTransform(uint32_t entity_id, glm::mat4 &transform) const;
@@ -71,8 +73,16 @@ class Scene {
 
   int GetEntityMaterial(uint32_t entity_id, Material &material) const;
 
+  int SetEntityAlbedoTexture(uint32_t entity_id, uint32_t texture_id);
+
+  int SetEntityAlbedoDetailTexture(uint32_t entity_id, uint32_t texture_id);
+
+  int SetEntityMesh(uint32_t entity_id, uint32_t mesh_id);
+
  private:
   void UpdateDynamicBuffers();
+  void UpdateTopLevelAccelerationStructure();
+  void UpdateDescriptorSetBindings();
 
   class Renderer *renderer_{};
 
@@ -95,5 +105,9 @@ class Scene {
       raytracing_descriptor_sets_{};
 
   std::unique_ptr<vulkan::AccelerationStructure> top_level_as_{};
+
+  std::unique_ptr<vulkan::DynamicBuffer<Material>> entity_material_buffer_{};
+  std::unique_ptr<vulkan::DynamicBuffer<EntityMetadata>>
+      entity_metadata_buffer_{};
 };
 }  // namespace sparks

@@ -6,6 +6,7 @@ namespace sparks {
 struct EnvMapSettings {
   float offset{0.0f};
   float exposure{1.0f};
+  uint32_t envmap_id{0};
   int reflect{1};
 };
 
@@ -14,16 +15,12 @@ class EnvMap {
   EnvMap(Scene *scene);
   ~EnvMap();
 
-  EnvMapSettings &Settings() {
+  EnvMapSettings Settings() const {
     return settings_;
   }
 
-  const EnvMapSettings &Settings() const {
-    return settings_;
-  }
-
-  vulkan::DescriptorSet *DescriptorSet(int frame_id) {
-    return descriptor_sets_[frame_id].get();
+  VkDescriptorSet DescriptorSet(int frame_id) {
+    return descriptor_sets_[frame_id]->Handle();
   }
 
   void SetEnvmapTexture(uint32_t envmap_id);
@@ -33,6 +30,7 @@ class EnvMap {
   void Sync(VkCommandBuffer cmd_buffer, int frame_id);
 
  private:
+  friend Scene;
   Scene *scene_{nullptr};
   EnvMapSettings settings_{};
   std::unique_ptr<vulkan::DynamicBuffer<EnvMapSettings>>

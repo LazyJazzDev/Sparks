@@ -7,8 +7,8 @@ namespace sparks {
 struct EntityMetadata {
   glm::mat4 transform{1.0f};
   uint32_t entity_id{0};
-  uint32_t albedo_map_id{0};
-  uint32_t albedo_detail_map_id{0};
+  uint32_t albedo_texture_id{0};
+  uint32_t albedo_detail_texture_id{0};
   uint32_t padding0{0xccccccccu};
 };
 
@@ -18,8 +18,6 @@ class Entity {
   ~Entity();
 
   vulkan::Core *Core() const;
-
-  void SetMesh(uint32_t mesh_id);
 
   uint32_t MeshId() const {
     return mesh_id_;
@@ -37,14 +35,14 @@ class Entity {
     return metadata_.transform;
   }
 
-  void SetAlbedoTexture(uint32_t texture_id);
-  void SetAlbedoDetailTexture(uint32_t texture_id);
+  EntityMetadata GetTranslatedMetadata() const;
 
   void Update();
   void Sync(VkCommandBuffer cmd_buffer, int frame_id);
 
  private:
   friend Scene;
+
   Scene *scene_;
   uint32_t mesh_id_{};
   Material material_{};

@@ -29,6 +29,13 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
       std::make_unique<vulkan::DynamicBuffer<SceneSettings>>(
           renderer_->Core(), 1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
+  entity_material_buffer_ = std::make_unique<vulkan::DynamicBuffer<Material>>(
+      renderer_->Core(), max_entities, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+  entity_metadata_buffer_ =
+      std::make_unique<vulkan::DynamicBuffer<EntityMetadata>>(
+          renderer_->Core(), max_entities, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   descriptor_sets_.resize(renderer_->Core()->MaxFramesInFlight());
   for (int i = 0; i < renderer_->Core()->MaxFramesInFlight(); i++) {
     descriptor_pool_->AllocateDescriptorSet(
@@ -36,6 +43,10 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
 
     descriptor_sets_[i]->BindUniformBuffer(
         0, scene_settings_buffer_->GetBuffer(i));
+    descriptor_sets_[i]->BindStorageBuffer(
+        1, entity_material_buffer_->GetBuffer(i));
+    descriptor_sets_[i]->BindStorageBuffer(
+        2, entity_metadata_buffer_->GetBuffer(i));
   }
 
   renderer_->Core()->CreateTopLevelAccelerationStructure({}, &top_level_as_);
@@ -56,6 +67,8 @@ Scene::~Scene() {
   entities_.clear();
   descriptor_sets_.clear();
   raytracing_descriptor_sets_.clear();
+  entity_material_buffer_.reset();
+  entity_metadata_buffer_.reset();
   scene_settings_buffer_.reset();
   descriptor_pool_.reset();
 }
@@ -76,17 +89,52 @@ void Scene::Update(float delta_time) {
 
   envmap_->Update();
   UpdateDynamicBuffers();
+  UpdateTopLevelAccelerationStructure();
+  UpdateDescriptorSetBindings();
+}
+
+void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
+  envmap_->Sync(cmd_buffer, frame_id);
+  scene_settings_buffer_->SyncData(cmd_buffer, frame_id);
+  for (auto &entity : entities_) {
+    entity.second->Sync(cmd_buffer, frame_id);
+  }
+  entity_metadata_buffer_->SyncData(cmd_buffer, frame_id);
+  entity_material_buffer_->SyncData(cmd_buffer, frame_id);
+}
+
+void Scene::UpdateDynamicBuffers() {
+  Renderer()->AssetManager()->GetMeshIds();
+  Renderer()->AssetManager()->GetTextureIds();
+
+  VkExtent2D extent = renderer_->Core()->Swapchain()->Extent();
+  SceneSettings scene_settings;
+  scene_settings.view = camera_.GetView();
+  scene_settings.projection = camera_.GetProjection(
+      static_cast<float>(extent.width) / static_cast<float>(extent.height));
+  scene_settings.inv_projection = glm::inverse(scene_settings.projection);
+  scene_settings.inv_view = glm::inverse(scene_settings.view);
+  scene_settings_buffer_->At(0) = scene_settings;
 
   for (auto &entity : entities_) {
     entity.second->Update();
   }
 
+  uint32_t binding_entity_id = 0;
+  for (auto &[id, entity] : entities_) {
+    entity_metadata_buffer_->At(binding_entity_id) =
+        entity->GetTranslatedMetadata();
+    entity_material_buffer_->At(binding_entity_id) = entity->GetMaterial();
+    binding_entity_id++;
+  }
+}
+
+void Scene::UpdateTopLevelAccelerationStructure() {
   std::vector<std::pair<vulkan::AccelerationStructure *, glm::mat4>> instances;
-  for (auto &entity : entities_) {
-    uint32_t mesh_id = entity.second->MeshId();
+  for (auto &[id, entity] : entities_) {
+    uint32_t mesh_id = entity->MeshId();
     auto mesh = renderer_->AssetManager()->GetMesh(mesh_id);
-    instances.emplace_back(mesh->blas_.get(),
-                           entity.second->metadata_.transform);
+    instances.emplace_back(mesh->blas_.get(), entity->metadata_.transform);
   }
   static int last_num_instances = -1;
   if (last_num_instances != instances.size()) {
@@ -99,45 +147,27 @@ void Scene::Update(float delta_time) {
                                    renderer_->Core()->GraphicsCommandPool(),
                                    renderer_->Core()->GraphicsQueue());
   }
-
-  std::vector<const vulkan::Buffer *> vertex_buffers;
-  std::vector<const vulkan::Buffer *> index_buffers;
-  for (auto mesh_id : renderer_->AssetManager()->GetMeshIds()) {
-    auto mesh = renderer_->AssetManager()->GetMesh(mesh_id);
-    vertex_buffers.push_back(mesh->vertex_buffer_->GetBuffer());
-    index_buffers.push_back(mesh->index_buffer_->GetBuffer());
-  }
-
-  raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
-      ->BindAccelerationStructure(0, top_level_as_.get());
-  //        raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
-  //                ->BindStorageBuffers(1, vertex_buffers);
-  //        raytracing_descriptor_sets_[renderer_->Core()->CurrentFrame()]
-  //                ->BindStorageBuffers(2, index_buffers);
 }
 
-void Scene::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
-  envmap_->Sync(cmd_buffer, frame_id);
-  scene_settings_buffer_->SyncData(cmd_buffer, frame_id);
-  for (auto &entity : entities_) {
-    entity.second->Sync(cmd_buffer, frame_id);
-  }
-}
+void Scene::UpdateDescriptorSetBindings() {
+  uint32_t frame_id = renderer_->Core()->CurrentFrame();
+  raytracing_descriptor_sets_[frame_id]->BindAccelerationStructure(
+      0, top_level_as_.get());
 
-void Scene::UpdateDynamicBuffers() {
-  VkExtent2D extent = renderer_->Core()->Swapchain()->Extent();
-  SceneSettings scene_settings;
-  scene_settings.view = camera_.GetView();
-  scene_settings.projection = camera_.GetProjection(
-      static_cast<float>(extent.width) / static_cast<float>(extent.height));
-  scene_settings.inv_projection = glm::inverse(scene_settings.projection);
-  scene_settings.inv_view = glm::inverse(scene_settings.view);
-  scene_settings_buffer_->At(0) = scene_settings;
+  for (auto &[id, entity] : entities_) {
+    entity->descriptor_sets_[frame_id]->BindCombinedImageSampler(
+        2, renderer_->AssetManager()
+               ->GetTexture(entity->metadata_.albedo_texture_id)
+               ->image_.get());
+    entity->descriptor_sets_[frame_id]->BindCombinedImageSampler(
+        3, renderer_->AssetManager()
+               ->GetTexture(entity->metadata_.albedo_detail_texture_id)
+               ->image_.get());
+  }
 }
 
 void Scene::DrawEnvmap(VkCommandBuffer cmd_buffer, int frame_id) {
-  VkDescriptorSet descriptor_sets[] = {
-      envmap_->DescriptorSet(frame_id)->Handle()};
+  VkDescriptorSet descriptor_sets[] = {envmap_->DescriptorSet(frame_id)};
   vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           renderer_->EnvmapPipelineLayout()->Handle(), 1, 1,
                           descriptor_sets, 0, nullptr);
@@ -194,6 +224,36 @@ int Scene::GetEntityMaterial(uint32_t entity_id, Material &material) const {
     return -1;
   }
   material = entities_.at(entity_id)->material_;
+  return 0;
+}
+
+int Scene::SetEntityAlbedoTexture(uint32_t entity_id, uint32_t texture_id) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->metadata_.albedo_texture_id = texture_id;
+  return 0;
+}
+
+int Scene::SetEntityAlbedoDetailTexture(uint32_t entity_id,
+                                        uint32_t texture_id) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->metadata_.albedo_detail_texture_id = texture_id;
+  return 0;
+}
+
+int Scene::SetEntityMesh(uint32_t entity_id, uint32_t mesh_id) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->mesh_id_ = mesh_id;
+  return 0;
+}
+
+int Scene::SetEnvmapSettings(const EnvMapSettings &settings) {
+  envmap_->settings_ = settings;
   return 0;
 }
 }  // namespace sparks

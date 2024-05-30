@@ -31,7 +31,15 @@ EnvMap::~EnvMap() {
 }
 
 void EnvMap::Update() {
-  envmap_settings_buffer_->At(0) = settings_;
+  EnvMapSettings settings = settings_;
+  settings.envmap_id = scene_->Renderer()->AssetManager()->GetTextureBindingId(
+      settings.envmap_id);
+  envmap_settings_buffer_->At(0) = settings;
+  descriptor_sets_[scene_->Renderer()->Core()->CurrentFrame()]
+      ->BindCombinedImageSampler(1, scene_->Renderer()
+                                        ->AssetManager()
+                                        ->GetTexture(settings_.envmap_id)
+                                        ->image_.get());
 }
 
 void EnvMap::Sync(VkCommandBuffer cmd_buffer, int frame_id) {
@@ -39,12 +47,7 @@ void EnvMap::Sync(VkCommandBuffer cmd_buffer, int frame_id) {
 }
 
 void EnvMap::SetEnvmapTexture(uint32_t envmap_id) {
-  scene_->Renderer()->Core()->Device()->WaitIdle();
-  auto asset_manager = scene_->Renderer()->AssetManager();
-  auto texture = asset_manager->GetTexture(envmap_id);
-  for (size_t i = 0; i < descriptor_sets_.size(); ++i) {
-    descriptor_sets_[i]->BindCombinedImageSampler(1, texture->image_.get());
-  }
+  settings_.envmap_id = envmap_id;
 }
 
 }  // namespace sparks
