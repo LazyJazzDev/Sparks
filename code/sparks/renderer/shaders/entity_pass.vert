@@ -27,13 +27,10 @@ layout(location = 1) out vec3 out_normal;
 layout(location = 2) out vec3 out_tangent;
 layout(location = 3) out vec3 out_bitangent;
 layout(location = 4) out vec2 out_tex_coord;
-layout(location = 5) out float out_signal;
-layout(location = 6) out uint out_instance_id;
+layout(location = 5) out uint out_instance_id;
 
 void main() {
-  out_signal = (gl_InstanceIndex == 1) ? -1.0 : 1.0;
-  out_pos =
-      vec3(metadata.model * vec4(in_pos, 1.0)) * vec3(1.0, out_signal, 1.0);
+  out_pos = vec3(metadata.model * vec4(in_pos, 1.0));
   out_normal = transpose(inverse(mat3(metadata.model))) * in_normal;
   out_tangent = mat3(metadata.model) * in_tangent;
   out_bitangent =

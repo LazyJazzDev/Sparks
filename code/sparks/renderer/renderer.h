@@ -39,6 +39,14 @@ class Renderer {
     return raytracing_descriptor_set_layout_.get();
   }
 
+  vulkan::DescriptorSetLayout *LightingDescriptorSetLayout() {
+    return lighting_descriptor_set_layout_.get();
+  }
+
+  vulkan::DescriptorSetLayout *PostProcessDescriptorSetLayout() {
+    return post_process_descriptor_set_layout_.get();
+  }
+
   vulkan::DescriptorSetLayout *RayTracingFilmDescriptorSetLayout() {
     return raytracing_film_descriptor_set_layout_.get();
   }
@@ -57,6 +65,14 @@ class Renderer {
 
   vulkan::PipelineLayout *EnvmapPipelineLayout() {
     return envmap_pipeline_layout_.get();
+  }
+
+  vulkan::PipelineLayout *LightingPipelineLayout() {
+    return lighting_pipeline_layout_.get();
+  }
+
+  vulkan::PipelineLayout *PostProcessPipelineLayout() {
+    return post_process_pipeline_layout_.get();
   }
 
   vulkan::RenderPass *RenderPass() {
@@ -82,7 +98,7 @@ class Renderer {
                              sparks::Scene *scene);
 
  private:
-  void CreateDescriptorSetLayouts();
+  void CreateCommonObjects();
 
   void CreateRenderPass();
 
@@ -90,9 +106,13 @@ class Renderer {
 
   void CreateEntityPipeline();
 
+  void CreateLightingPipeline();
+
+  void CreatePostProcessPipeline();
+
   void CreateRayTracingPipeline();
 
-  void DestroyDescriptorSetLayouts();
+  void DestroyCommonObjects();
 
   void DestroyRenderPass();
 
@@ -100,10 +120,16 @@ class Renderer {
 
   void DestroyEntityPipeline();
 
+  void DestroyLightingPipeline();
+
+  void DestroyPostProcessPipeline();
+
   void DestroyRayTracingPipeline();
 
   vulkan::Core *core_{};
+
   class AssetManager *asset_manager_{};
+
   std::unique_ptr<vulkan::DescriptorSetLayout> scene_descriptor_set_layout_;
   std::unique_ptr<vulkan::RenderPass> render_pass_;
 
@@ -118,6 +144,16 @@ class Renderer {
   std::unique_ptr<vulkan::ShaderModule> envmap_vertex_shader_;
   std::unique_ptr<vulkan::ShaderModule> envmap_fragment_shader_;
   std::unique_ptr<vulkan::Pipeline> envmap_pipeline_;
+
+  std::unique_ptr<vulkan::DescriptorSetLayout> lighting_descriptor_set_layout_;
+  std::unique_ptr<vulkan::PipelineLayout> lighting_pipeline_layout_;
+
+  std::unique_ptr<vulkan::DescriptorSetLayout>
+      post_process_descriptor_set_layout_;
+  std::unique_ptr<vulkan::PipelineLayout> post_process_pipeline_layout_;
+  std::unique_ptr<vulkan::ShaderModule> post_process_vertex_shader_;
+  std::unique_ptr<vulkan::ShaderModule> post_process_fragment_shader_;
+  std::unique_ptr<vulkan::Pipeline> post_process_pipeline_;
 
   std::unique_ptr<vulkan::DescriptorSetLayout>
       raytracing_descriptor_set_layout_;

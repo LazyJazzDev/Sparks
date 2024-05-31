@@ -210,7 +210,7 @@ void Scene::DrawEntities(VkCommandBuffer cmd_buffer, int frame_id) {
     vkCmdBindIndexBuffer(cmd_buffer,
                          mesh->index_buffer_->GetBuffer(frame_id)->Handle(), 0,
                          VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed(cmd_buffer, mesh->index_buffer_->Length(), 2, 0, 0, 0);
+    vkCmdDrawIndexed(cmd_buffer, mesh->index_buffer_->Length(), 1, 0, 0, 0);
   }
 }
 

@@ -5,8 +5,7 @@ layout(location = 1) in vec3 in_normal;
 layout(location = 2) in vec3 in_tangent;
 layout(location = 3) in vec3 in_bitangent;
 layout(location = 4) in vec2 in_tex_coord;
-layout(location = 5) in float in_signal;
-layout(location = 6) flat in uint in_instance_id;
+layout(location = 5) flat in uint in_instance_id;
 
 layout(location = 0) out vec4 out_albedo;
 layout(location = 1) out vec4 out_position;
@@ -29,10 +28,6 @@ layout(set = 1, binding = 2) uniform sampler2D albedo_map;
 layout(set = 1, binding = 3) uniform sampler2D detail_map;
 
 void main() {
-  if (in_signal * in_pos.y < 0.0) {
-    discard;
-  }
-
   vec3 color =
       texture(albedo_map, in_tex_coord).rgb *
       texture(detail_map, in_tex_coord * metadata.detail_scale_offset.xy +

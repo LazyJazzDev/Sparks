@@ -147,7 +147,7 @@ void Application::OnRender() {
         VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
         VK_IMAGE_ASPECT_COLOR_BIT);
   } else {
-    vulkan::BlitImage(cmd_buffer, film_->radiance_image.get(),
+    vulkan::BlitImage(cmd_buffer, film_->result_image.get(),
                       frame_image_.get());
   }
 
@@ -287,7 +287,35 @@ void Application::LoadScene() {
   scene_->SetEntityDetailScaleOffset(entity_id, {20.0f, 20.0f, 0.0f, 0.0f});
 
   Mesh plane_mesh;
-  plane_mesh.LoadObjFile(FindAssetsFile("mesh/plane.obj"));
+  std::vector<Vertex> plane_vertices;
+  std::vector<uint32_t> plane_indices;
+  const int precision = 500;
+  const float inv_precision = 1.0f / static_cast<float>(precision);
+  for (int i = 0; i <= precision; i++) {
+    for (int j = 0; j <= precision; j++) {
+      Vertex vertex;
+      vertex.position = {static_cast<float>(i) * inv_precision - 0.5f, 0.0f,
+                         static_cast<float>(j) * inv_precision - 0.5f};
+      vertex.normal = {0.0f, 1.0f, 0.0f};
+      vertex.tangent = {1.0f, 0.0f, 0.0f};
+      vertex.tex_coord = {static_cast<float>(i) * inv_precision,
+                          1.0f - static_cast<float>(j) * inv_precision};
+      vertex.signal = 1.0f;
+      plane_vertices.push_back(vertex);
+    }
+  }
+  for (int i = 0; i < precision; i++) {
+    for (int j = 0; j < precision; j++) {
+      plane_indices.push_back(i * (precision + 1) + j);
+      plane_indices.push_back(i * (precision + 1) + j + 1);
+      plane_indices.push_back((i + 1) * (precision + 1) + j);
+      plane_indices.push_back((i + 1) * (precision + 1) + j);
+      plane_indices.push_back(i * (precision + 1) + j + 1);
+      plane_indices.push_back((i + 1) * (precision + 1) + j + 1);
+    }
+  }
+  plane_mesh = {plane_vertices, plane_indices};
+
   auto plane_mesh_id = asset_manager->LoadMesh(plane_mesh, "PlaneMesh");
 
   Texture water_texture;
@@ -341,10 +369,13 @@ void Application::ImGui() {
                    ImGuiWindowFlags_NoTitleBar);
   ImGui::Text("Statistics (%dx%d)", framebuffer_width_, framebuffer_height_);
   ImGui::Text("Cursor: (%d, %d)", cursor_x_, cursor_y_);
-  ImGui::Text("Hovering: %x %x", hovering_instances_[0],
-              hovering_instances_[1]);
-  ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f, %.2f)", hovering_color_.r,
-              hovering_color_.g, hovering_color_.b, hovering_color_.a);
+  if (cursor_x_ >= 0 && cursor_x_ < framebuffer_width_ && cursor_y_ >= 0 &&
+      cursor_y_ < framebuffer_height_) {
+    ImGui::Text("Hovering: %x %x", hovering_instances_[0],
+                hovering_instances_[1]);
+    ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f)", hovering_color_.r,
+                hovering_color_.g, hovering_color_.b);
+  }
   ImGui::End();
 }
 

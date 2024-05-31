@@ -39,6 +39,12 @@ layout(set = 2, binding = 3) uniform sampler samplers[];
 
 layout(set = 4, binding = 0, rgba8) uniform image2D result_image;
 
+layout(set = 4,
+       binding = 1,
+       rgba32f) uniform image2D accumulated_radiance_image;
+
+layout(set = 4, binding = 2, r32f) uniform image2D accumulated_weight_image;
+
 layout(location = 0) rayPayloadEXT RayPayload ray_payload;
 
 #include "hit_record.glsl"
@@ -111,5 +117,34 @@ void main() {
   ray_payload.t = -1.0;
   vec3 sampled_result = SampleRay(origin.xyz, direction.xyz);
 
-  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy), vec4(sampled_result, 1.0));
+  vec4 accumulated_radiance = vec4(0.0);
+  float accumulated_weight = 0.0f;
+  accumulated_radiance =
+      imageLoad(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy));
+  accumulated_weight =
+      imageLoad(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy)).r;
+
+  accumulated_radiance *= scene_settings.persistence;
+  accumulated_weight *= scene_settings.persistence;
+
+  if (isnan(accumulated_weight) || isnan(accumulated_radiance.r) ||
+      isnan(accumulated_radiance.g) || isnan(accumulated_radiance.b) ||
+      isnan(accumulated_radiance.a)) {
+    accumulated_weight = 0.0;
+    accumulated_radiance = vec4(0.0);
+  }
+
+  accumulated_radiance += vec4(sampled_result, 1.0);
+  accumulated_weight += 1.0f;
+
+  vec4 resolved_result =
+      pow(scene_settings.exposure * accumulated_radiance / accumulated_weight,
+          vec4(1.0 / scene_settings.gamma));
+
+  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy),
+             vec4(resolved_result.rgb, 1.0));
+  imageStore(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy),
+             accumulated_radiance);
+  imageStore(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy),
+             vec4(accumulated_weight));
 }

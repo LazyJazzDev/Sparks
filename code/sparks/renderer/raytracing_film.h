@@ -1,8 +1,11 @@
 #pragma once
+
 #include "sparks/renderer/renderer_utils.h"
 
 namespace sparks {
 struct RayTracingFilm {
+  std::unique_ptr<vulkan::Image> accumulated_radiance_image{};
+  std::unique_ptr<vulkan::Image> accumulated_weight_image{};
   std::unique_ptr<vulkan::Image> result_image{};
   std::unique_ptr<vulkan::DescriptorPool> descriptor_pool{};
   std::unique_ptr<vulkan::DescriptorSet> descriptor_set{};

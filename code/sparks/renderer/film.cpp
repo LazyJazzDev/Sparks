@@ -12,11 +12,18 @@ void Film::Resize(uint32_t width, uint32_t height) {
   radiance_image->Resize(extent);
   depth_image->Resize(extent);
   stencil_image->Resize(extent);
+  result_image->Resize(extent);
   renderer->RenderPass()->CreateFramebuffer(
       {albedo_image->ImageView(), position_image->ImageView(),
        normal_image->ImageView(), radiance_image->ImageView(),
-       depth_image->ImageView(), stencil_image->ImageView()},
+       depth_image->ImageView(), stencil_image->ImageView(),
+       result_image->ImageView()},
       VkExtent2D{width, height}, &framebuffer);
+
+  lighting_attachment_set->BindInputAttachment(0, albedo_image.get());
+  lighting_attachment_set->BindInputAttachment(1, position_image.get());
+  lighting_attachment_set->BindInputAttachment(2, normal_image.get());
+  post_process_attachment_set->BindInputAttachment(0, radiance_image.get());
 
   renderer->Core()->SingleTimeCommands(
       [image = stencil_image->Handle()](VkCommandBuffer cmd_buffer) {
