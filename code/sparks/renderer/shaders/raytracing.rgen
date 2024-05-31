@@ -36,6 +36,7 @@ layout(set = 2, binding = 3) uniform sampler samplers[];
 
 #define ENVMAP_SET 3
 #include "envmap.glsl"
+#include "random.glsl"
 
 layout(set = 4, binding = 0, rgba8) uniform image2D result_image;
 
@@ -89,9 +90,10 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
                                     samplers[0]),
                           SampleEnvmapUV(direction))
                       .xyz *
-                  envmap_data.exposure;
+                  envmap_data.scale;
       break;
     }
+
     HitRecord hit_record = ComposeHitRecord(ray_payload, origin, direction);
     Material material = GetMaterial(hit_record);
     radiance += throughput * material.base_color;
@@ -101,6 +103,7 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
 }
 
 void main() {
+  InitRandomSeed(gl_LaunchIDEXT.x, gl_LaunchIDEXT.y, 0);
   const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
   const vec2 inUV = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
   vec2 d = inUV * 2.0 - 1.0;

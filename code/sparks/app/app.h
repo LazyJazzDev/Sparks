@@ -43,7 +43,9 @@ class Application {
   void DestroyGuiRenderer();
 
   void ImGui();
+  ImVec2 ImGuiSettingsWindow();
   ImVec2 ImGuizmoWindow();
+  ImVec2 ImGuiStatisticWindow(ImVec2 window_pos);
   void CaptureMouseRelatedData();
 
   AppSettings settings_{};
@@ -63,7 +65,7 @@ class Application {
 
   std::unique_ptr<AppGuiRenderer> gui_renderer_;
 
-  int output_frame_{0};
+  bool output_raytracing_result_{false};
 
   int window_width_;
   int window_height_;
@@ -80,6 +82,9 @@ class Application {
 
   Material editing_material_;
   glm::mat4 editing_transform_{1.0f};
+  SceneSettings editing_scene_settings_;
+  EnvMapSettings editing_envmap_settings_;
+  bool render_settings_changed_{false};
 };
 
 }  // namespace sparks

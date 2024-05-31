@@ -72,6 +72,8 @@ class Scene {
 
   int SetEnvmapSettings(const EnvMapSettings &settings);
 
+  int GetEnvmapSettings(EnvMapSettings &settings) const;
+
   int SetEntityTransform(uint32_t entity_id, const glm::mat4 &transform);
 
   int GetEntityTransform(uint32_t entity_id, glm::mat4 &transform) const;
@@ -95,9 +97,17 @@ class Scene {
   int GetEntityDetailScaleOffset(uint32_t entity_id,
                                  glm::vec4 &scale_offset) const;
 
+  int SetEntityMetadata(uint32_t entity_id, const EntityMetadata &metadata);
+
+  int GetEntityMetadata(uint32_t entity_id, EntityMetadata &metadata) const;
+
   int SetEntityMesh(uint32_t entity_id, uint32_t mesh_id);
 
   int GetEntityMesh(uint32_t entity_id, uint32_t &mesh_id) const;
+
+  void SetSceneSettings(const SceneSettings &settings);
+
+  void GetSceneSettings(SceneSettings &settings) const;
 
  private:
   void UpdateDynamicBuffers();
@@ -132,5 +142,6 @@ class Scene {
   std::unique_ptr<vulkan::DynamicBuffer<Material>> entity_material_buffer_{};
   std::unique_ptr<vulkan::DynamicBuffer<EntityMetadata>>
       entity_metadata_buffer_{};
+  SceneSettings scene_settings_;
 };
 }  // namespace sparks

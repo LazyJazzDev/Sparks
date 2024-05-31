@@ -47,6 +47,10 @@ class AssetManager {
 
   void Update(uint32_t frame_id);
 
+  bool ComboForTextureSelection(const char *label, uint32_t *id);
+
+  bool ComboForMeshSelection(const char *label, uint32_t *id);
+
  private:
   void CreateDefaultAssets();
   void CreateDescriptorObjects();

@@ -16,8 +16,9 @@ layout(location = 4) out uvec4 out_instance;
 void main() {
   vec3 direction = normalize(ray_direction);
   vec3 color =
-      texture(envmap, SampleEnvmapUV(direction)).rgb * envmap_data.exposure;
+      texture(envmap, SampleEnvmapUV(direction)).rgb * envmap_data.scale;
   out_albedo = vec4(0.0);
+
   out_position = vec4(0.0);
   out_normal = vec4(-direction, 0.0);
   out_color = vec4(color, 1.0);

@@ -269,4 +269,44 @@ void AssetManager::Update(uint32_t frame_id) {
   UpdateTextureBindings(frame_id);
 }
 
+bool AssetManager::ComboForTextureSelection(const char *label, uint32_t *id) {
+  bool result = false;
+  std::vector<const char *> items;
+  std::vector<uint32_t> item_ids;
+  int current_selection = 0;
+  for (auto &[item_id, item] : textures_) {
+    items.push_back(item.second->name_.c_str());
+    item_ids.push_back(item_id);
+    if (item_id == *id) {
+      current_selection = items.size() - 1;
+    }
+  }
+  result = ImGui::Combo(label, &current_selection, items.data(),
+                        static_cast<int>(items.size()));
+  if (result) {
+    *id = item_ids[current_selection];
+  }
+  return result;
+}
+
+bool AssetManager::ComboForMeshSelection(const char *label, uint32_t *id) {
+  bool result = false;
+  std::vector<const char *> items;
+  std::vector<uint32_t> item_ids;
+  int current_selection = 0;
+  for (auto &[item_id, item] : meshes_) {
+    items.push_back(item.second->name_.c_str());
+    item_ids.push_back(item_id);
+    if (item_id == *id) {
+      current_selection = items.size() - 1;
+    }
+  }
+  result = ImGui::Combo(label, &current_selection, items.data(),
+                        static_cast<int>(items.size()));
+  if (result) {
+    *id = item_ids[current_selection];
+  }
+  return result;
+}
+
 }  // namespace sparks

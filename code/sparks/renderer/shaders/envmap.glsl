@@ -4,8 +4,8 @@
 #include "constants.glsl"
 
 layout(set = ENVMAP_SET, binding = 0, std140) uniform EnvmapData {
-  float envmap_rotation;
-  float exposure;
+  float offset;
+  float scale;
   int envmap_id;
   bool reflect;
 }
@@ -18,6 +18,8 @@ vec2 SampleEnvmapUV(vec3 direction) {
   if (envmap_data.reflect && direction.y > 0.5) {
     direction.y = 1.0 - direction.y;
   }
+  direction.x += envmap_data.offset;
+  direction.xy = mod(direction.xy, 1.0);
 
   return direction.xy;
 }

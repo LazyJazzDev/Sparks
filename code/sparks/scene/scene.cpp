@@ -123,7 +123,7 @@ void Scene::UpdateDynamicBuffers() {
   Renderer()->AssetManager()->GetTextureIds();
 
   VkExtent2D extent = renderer_->Core()->Swapchain()->Extent();
-  SceneSettings scene_settings;
+  SceneSettings scene_settings = scene_settings_;
   scene_settings.view = camera_.GetView();
   scene_settings.projection = camera_.GetProjection(
       static_cast<float>(extent.width) / static_cast<float>(extent.height));
@@ -317,6 +317,37 @@ int Scene::GetEntityMesh(uint32_t entity_id, uint32_t &mesh_id) const {
 
 int Scene::SetEnvmapSettings(const EnvMapSettings &settings) {
   envmap_->settings_ = settings;
+  return 0;
+}
+
+int Scene::GetEnvmapSettings(EnvMapSettings &settings) const {
+  settings = envmap_->settings_;
+  return 0;
+}
+
+void Scene::SetSceneSettings(const SceneSettings &settings) {
+  scene_settings_ = settings;
+}
+
+void Scene::GetSceneSettings(SceneSettings &settings) const {
+  settings = scene_settings_;
+}
+
+int Scene::SetEntityMetadata(uint32_t entity_id,
+                             const EntityMetadata &metadata) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->metadata_ = metadata;
+  return 0;
+}
+
+int Scene::GetEntityMetadata(uint32_t entity_id,
+                             EntityMetadata &metadata) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  metadata = entities_.at(entity_id)->metadata_;
   return 0;
 }
 

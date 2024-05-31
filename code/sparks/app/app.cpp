@@ -113,7 +113,7 @@ void Application::OnUpdate() {
   imgui_manager_->BeginFrame();
   ImGuizmo::BeginFrame();
   ImGui();
-  asset_manager_->ImGui();
+  //  asset_manager_->ImGui();
   imgui_manager_->EndFrame();
 
   core_->TransferCommandPool()->SingleTimeCommands(
@@ -145,7 +145,7 @@ void Application::OnRender() {
       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT);
 
-  if (output_frame_) {
+  if (output_raytracing_result_) {
     vulkan::TransitImageLayout(
         cmd_buffer, raytracing_film_->result_image->Handle(),
         VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -408,32 +408,10 @@ void Application::LoadScene() {
 }
 
 void Application::ImGui() {
-  if (ImGui::Begin("Settings")) {
-    std::vector<const char *> output_frames = {"Color", "Ray Tracing"};
-    ImGui::Combo("Type", reinterpret_cast<int *>(&output_frame_),
-                 output_frames.data(), output_frames.size());
-  }
-  ImGui::End();
-
-  ImVec2 statistic_window_size = ImGuizmoWindow();
-
-  ImGui::SetNextWindowPos(
-      ImVec2(ImGui::GetIO().DisplaySize.x, statistic_window_size.y),
-      ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-  ImGui::SetNextWindowBgAlpha(0.3f);
-  ImGui::Begin("Statistics", nullptr,
-               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
-                   ImGuiWindowFlags_NoTitleBar);
-  ImGui::Text("Statistics (%dx%d)", framebuffer_width_, framebuffer_height_);
-  ImGui::Text("Cursor: (%d, %d)", cursor_x_, cursor_y_);
-  if (cursor_x_ >= 0 && cursor_x_ < framebuffer_width_ && cursor_y_ >= 0 &&
-      cursor_y_ < framebuffer_height_) {
-    ImGui::Text("Hovering: %x %x", hovering_instances_[0],
-                hovering_instances_[1]);
-    ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f)", hovering_color_.r,
-                hovering_color_.g, hovering_color_.b);
-  }
-  ImGui::End();
+  ImGuiSettingsWindow();
+  ImVec2 window_size = ImGuizmoWindow();
+  window_size =
+      ImGuiStatisticWindow(ImVec2(ImGui::GetIO().DisplaySize.x, window_size.y));
 }
 
 void Application::CaptureMouseRelatedData() {
@@ -500,6 +478,98 @@ void Application::RegisterInteractions() {
     pre_selected_instances[0] = 0xfffffffeu;
     pre_selected_instances[1] = 0xfffffffeu;
   });
+}
+
+ImVec2 Application::ImGuiSettingsWindow() {
+  ImVec2 window_size = ImVec2{};
+  ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Once);
+  ImGui::SetNextWindowBgAlpha(0.3);
+  ImGui::Begin("Global Settings", nullptr,
+               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+                   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_MenuBar);
+  window_size = ImGui::GetWindowSize();
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("File")) {
+      char *result{nullptr};
+      if (ImGui::MenuItem("Open Scene")) {
+      }
+      if (ImGui::MenuItem("Import Image..")) {
+      }
+      if (ImGui::MenuItem("Import Mesh..")) {
+      }
+      ImGui::Separator();
+      if (ImGui::MenuItem("Capture and Save..")) {
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+
+  if (ImGui::RadioButton("Preview", !output_raytracing_result_)) {
+    output_raytracing_result_ = false;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Ray Tracing", output_raytracing_result_)) {
+    output_raytracing_result_ = true;
+  }
+
+  ImGui::SeparatorText("Note");
+  ImGui::Text("W/A/S/D/LCTRL/SPACE for camera movement.");
+  ImGui::Text("Cursor drag on frame for camera rotation.");
+  //        ImGui::Text("G for show/hidse GUI windows.");
+
+  if (ImGui::CollapsingHeader("Scene Settings")) {
+    scene_->GetSceneSettings(editing_scene_settings_);
+    render_settings_changed_ |= ImGui::SliderFloat(
+        "Exposure", &editing_scene_settings_.exposure, 0.0f, 2.0f, "%.2f");
+    render_settings_changed_ |= ImGui::SliderFloat(
+        "Gamma", &editing_scene_settings_.gamma, 0.1f, 5.0f, "%.2f");
+    render_settings_changed_ |=
+        ImGui::SliderFloat("Persistence", &editing_scene_settings_.persistence,
+                           0.0f, 1.0f, "%.2f");
+    scene_->SetSceneSettings(editing_scene_settings_);
+  }
+  if (ImGui::CollapsingHeader("Environment Map Settings")) {
+    scene_->GetEnvmapSettings(editing_envmap_settings_);
+    render_settings_changed_ |= asset_manager_->ComboForTextureSelection(
+        "Envmap", &editing_envmap_settings_.envmap_id);
+    render_settings_changed_ |= ImGui::SliderFloat(
+        "Offset", &editing_envmap_settings_.offset, 0.0f, 1.0f);
+    render_settings_changed_ |= ImGui::SliderFloat(
+        "Scale", &editing_envmap_settings_.scale, 0.0f, 2.0f, "%.2f");
+    bool reflect = editing_envmap_settings_.reflect;
+    ImGui::Checkbox("Reflect", &reflect);
+    editing_envmap_settings_.reflect = reflect;
+    scene_->SetEnvmapSettings(editing_envmap_settings_);
+  }
+  auto entity = scene_->GetEntity(selected_instances_[0]);
+  if (entity) {
+    if (ImGui::CollapsingHeader("Material")) {
+      Material material;
+      EntityMetadata metadata;
+      scene_->GetEntityMaterial(selected_instances_[0], material);
+      scene_->GetEntityMetadata(selected_instances_[0], metadata);
+      render_settings_changed_ |=
+          asset_manager_->ComboForMeshSelection("Mesh", &metadata.mesh_id);
+      render_settings_changed_ |= ImGui::ColorEdit3("Color", &material.color.r);
+      render_settings_changed_ |= asset_manager_->ComboForTextureSelection(
+          "Base Color Texture", &metadata.albedo_texture_id);
+      render_settings_changed_ |= asset_manager_->ComboForTextureSelection(
+          "Detail Texture", &metadata.albedo_detail_texture_id);
+      render_settings_changed_ |= ImGui::SliderFloat2(
+          "Detail Scale", &metadata.detail_scale_offset.x, 0.0001f, 10000.0f,
+          "%.4f", ImGuiSliderFlags_Logarithmic);
+      render_settings_changed_ |= ImGui::SliderFloat2(
+          "Detail Offset", &metadata.detail_scale_offset.z, 0.0f, 1.0f, "%.4f");
+      render_settings_changed_ |=
+          ImGui::SliderFloat("Alpha", &material.alpha, 0.0f, 1.0f);
+
+      scene_->SetEntityMaterial(selected_instances_[0], material);
+      scene_->SetEntityMetadata(selected_instances_[0], metadata);
+    }
+  }
+  ImGui::End();
+  return window_size;
 }
 
 ImVec2 Application::ImGuizmoWindow() {
@@ -584,6 +654,28 @@ ImVec2 Application::ImGuizmoWindow() {
       scene_->SetEntityTransform(selected_instances_[0], editing_transform_);
     }
   }
+  return window_size;
+}
+
+ImVec2 Application::ImGuiStatisticWindow(ImVec2 window_pos) {
+  ImVec2 window_size{0.0f, 0.0f};
+  ImGui::SetNextWindowPos(ImVec2(window_pos), ImGuiCond_Always,
+                          ImVec2(1.0f, 0.0f));
+  ImGui::SetNextWindowBgAlpha(0.3f);
+  ImGui::Begin("Statistics", nullptr,
+               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+                   ImGuiWindowFlags_NoTitleBar);
+  ImGui::Text("Statistics (%dx%d)", framebuffer_width_, framebuffer_height_);
+  ImGui::Text("Cursor: (%d, %d)", cursor_x_, cursor_y_);
+  if (cursor_x_ >= 0 && cursor_x_ < framebuffer_width_ && cursor_y_ >= 0 &&
+      cursor_y_ < framebuffer_height_) {
+    ImGui::Text("Hovering: %x %x", hovering_instances_[0],
+                hovering_instances_[1]);
+    ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f)", hovering_color_.r,
+                hovering_color_.g, hovering_color_.b);
+  }
+  window_size = ImGui::GetWindowSize();
+  ImGui::End();
   return window_size;
 }
 
