@@ -75,9 +75,22 @@ class Scene {
 
   int SetEntityAlbedoTexture(uint32_t entity_id, uint32_t texture_id);
 
+  int GetEntityAlbedoTexture(uint32_t entity_id, uint32_t &texture_id) const;
+
   int SetEntityAlbedoDetailTexture(uint32_t entity_id, uint32_t texture_id);
 
+  int GetEntityAlbedoDetailTexture(uint32_t entity_id,
+                                   uint32_t &texture_id) const;
+
+  int SetEntityDetailScaleOffset(uint32_t entity_id,
+                                 const glm::vec4 &scale_offset);
+
+  int GetEntityDetailScaleOffset(uint32_t entity_id,
+                                 glm::vec4 &scale_offset) const;
+
   int SetEntityMesh(uint32_t entity_id, uint32_t mesh_id);
+
+  int GetEntityMesh(uint32_t entity_id, uint32_t &mesh_id) const;
 
  private:
   void UpdateDynamicBuffers();

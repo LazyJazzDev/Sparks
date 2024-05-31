@@ -333,6 +333,9 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
       raytracing_film_descriptor_set_layout_->Handle(), &film.descriptor_set);
   film.descriptor_set->BindStorageImage(0, film.result_image.get());
 
+  Core()->Device()->NameObject(film.descriptor_set->Handle(),
+                               "Ray Tracing Film Descriptor Set");
+
   Core()->SingleTimeCommands([image = film.result_image->Handle()](
                                  VkCommandBuffer cmd_buffer) {
     vulkan::TransitImageLayout(

@@ -7,9 +7,10 @@ namespace sparks {
 struct EntityMetadata {
   glm::mat4 transform{1.0f};
   uint32_t entity_id{0};
+  uint32_t mesh_id{0};
   uint32_t albedo_texture_id{0};
   uint32_t albedo_detail_texture_id{0};
-  uint32_t padding0{0xccccccccu};
+  glm::vec4 detail_scale_offset{10.0f, 10.0f, 0.0f, 0.0f};
 };
 
 class Entity {
@@ -20,7 +21,7 @@ class Entity {
   vulkan::Core *Core() const;
 
   uint32_t MeshId() const {
-    return mesh_id_;
+    return metadata_.mesh_id;
   }
 
   Material GetMaterial() const {
@@ -44,7 +45,6 @@ class Entity {
   friend Scene;
 
   Scene *scene_;
-  uint32_t mesh_id_{};
   Material material_{};
   EntityMetadata metadata_{};
   std::vector<std::unique_ptr<vulkan::DescriptorSet>> descriptor_sets_;

@@ -11,14 +11,14 @@ void main() {
   if (ray_payload.t != -1.0) {
     ray_payload.barycentric =
         vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
-    ray_payload.object_id = gl_InstanceCustomIndexEXT;
+    ray_payload.entity_id = gl_InstanceCustomIndexEXT;
     ray_payload.primitive_id = gl_PrimitiveID;
-    ray_payload.object_to_world = gl_ObjectToWorldEXT;
+    ray_payload.entity_transform = gl_ObjectToWorldEXT;
   } else {
     ray_payload.t = -1.0;
-    ray_payload.object_to_world = mat4x3(1.0);
+    ray_payload.entity_transform = mat4x3(1.0);
     ray_payload.barycentric = vec3(0.0);
-    ray_payload.object_id = 0xffffffffu;
+    ray_payload.entity_id = 0xffffffffu;
     ray_payload.primitive_id = 0xffffffffu;
   }
 }

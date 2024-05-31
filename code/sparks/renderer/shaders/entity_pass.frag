@@ -33,16 +33,13 @@ void main() {
 
   vec3 color =
       texture(albedo_map, in_tex_coord).rgb *
-      texture(detail_map, in_tex_coord * material.detail_scale_offset.xy +
-                              material.detail_scale_offset.zw)
+      texture(detail_map, in_tex_coord * metadata.detail_scale_offset.xy +
+                              metadata.detail_scale_offset.zw)
           .rgb;
   vec3 normal = normalize(in_normal);
   vec3 tangent = normalize(in_tangent);
   vec3 bitangent = normalize(in_bitangent);
 
-  vec3 light_dir = normalize(vec3(1.0, 2.0, 3.0));
-
-  //  color *= max(dot(normal, light_dir), 0.0) * 0.7 + 0.3;
   out_albedo = vec4(1.0);
   out_position = vec4(in_pos, 0.0);
   out_normal = vec4(normal, 0.0);

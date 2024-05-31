@@ -246,7 +246,7 @@ void Application::LoadScene() {
   auto envmap = scene_->GetEnvMap();
 
   Texture envmap_texture;
-  envmap_texture.LoadFromFile(FindAssetsFile("texture/terrain/envmap.png"),
+  envmap_texture.LoadFromFile(FindAssetsFile("texture/envmap_clouds_4k.hdr"),
                               LDRColorSpace::UNORM);
   auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
   envmap->SetEnvmapTexture(envmap_id);
@@ -276,12 +276,13 @@ void Application::LoadScene() {
   Mesh terrain_mesh;
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
+  Material terrain_material;
   scene_->SetEntityMesh(entity_id, terrain_mesh_id);
-  scene_->SetEntityMaterial(
-      entity_id, {glm::vec3{1.0f}, 1.0f, {20.0f, 20.0f, 0.0f, 0.0f}});
+  scene_->SetEntityMaterial(entity_id, terrain_material);
   scene_->SetEntityTransform(
       entity_id,
       glm::translate(glm::mat4{1.0f}, glm::vec3{0.0f, -0.06f, 0.0f}));
+  scene_->SetEntityDetailScaleOffset(entity_id, {20.0f, 20.0f, 0.0f, 0.0f});
 
   Mesh plane_mesh;
   plane_mesh.LoadObjFile(FindAssetsFile("mesh/plane.obj"));
@@ -294,30 +295,31 @@ void Application::LoadScene() {
   auto water_texture_id =
       asset_manager->LoadTexture(water_texture, "WaterTexture");
   int water_entity_id = scene_->CreateEntity();
+  Material water_material;
+  water_material.color = {1.5f, 1.5f, 1.5f};
+  water_material.alpha = 0.5f;
   scene_->SetEntityAlbedoDetailTexture(water_entity_id, water_texture_id);
   scene_->SetEntityMesh(water_entity_id, plane_mesh_id);
-  scene_->SetEntityMaterial(
-      water_entity_id,
-      {{1.5f, 1.5f, 1.5f}, 0.5f, {1000.0f, 1000.0f, 0.0f, 0.0f}});
+  scene_->SetEntityMaterial(water_entity_id, water_material);
   scene_->SetEntityTransform(water_entity_id,
                              glm::scale(glm::mat4{1.0f}, glm::vec3{100.0f}));
+  scene_->SetEntityDetailScaleOffset(water_entity_id,
+                                     {1000.0f, 1000.0f, 0.0f, 0.0f});
 
   scene_->Camera()->SetFar(10.0f);
   scene_->Camera()->SetNear(0.01f);
   scene_->Camera()->SetPosition({0.0f, 0.1f, 1.2f});
 
   scene_->SetUpdateCallback([=](Scene *scene, float delta_time) {
-    Material material;
-    scene->GetEntityMaterial(water_entity_id, material);
     glm::vec2 speed{0.3f, 1.0f};
     speed *= delta_time * 0.1f;
-    material.detail_scale_offset.z += speed.x;
-    material.detail_scale_offset.w += speed.y;
-    material.detail_scale_offset.z =
-        glm::mod(material.detail_scale_offset.z, 1.0f);
-    material.detail_scale_offset.w =
-        glm::mod(material.detail_scale_offset.w, 1.0f);
-    scene->SetEntityMaterial(water_entity_id, material);
+    glm::vec4 detail_scale_offset;
+    scene->GetEntityDetailScaleOffset(water_entity_id, detail_scale_offset);
+    detail_scale_offset.z += speed.x;
+    detail_scale_offset.w += speed.y;
+    detail_scale_offset.z = glm::mod(detail_scale_offset.z, 1.0f);
+    detail_scale_offset.w = glm::mod(detail_scale_offset.w, 1.0f);
+    scene->SetEntityDetailScaleOffset(water_entity_id, detail_scale_offset);
   });
 }
 

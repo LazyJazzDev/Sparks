@@ -235,6 +235,15 @@ int Scene::SetEntityAlbedoTexture(uint32_t entity_id, uint32_t texture_id) {
   return 0;
 }
 
+int Scene::GetEntityAlbedoTexture(uint32_t entity_id,
+                                  uint32_t &texture_id) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  texture_id = entities_.at(entity_id)->metadata_.albedo_texture_id;
+  return 0;
+}
+
 int Scene::SetEntityAlbedoDetailTexture(uint32_t entity_id,
                                         uint32_t texture_id) {
   if (entities_.find(entity_id) == entities_.end()) {
@@ -244,11 +253,46 @@ int Scene::SetEntityAlbedoDetailTexture(uint32_t entity_id,
   return 0;
 }
 
+int Scene::GetEntityAlbedoDetailTexture(uint32_t entity_id,
+                                        uint32_t &texture_id) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  texture_id = entities_.at(entity_id)->metadata_.albedo_detail_texture_id;
+  return 0;
+}
+
+int Scene::SetEntityDetailScaleOffset(uint32_t entity_id,
+                                      const glm::vec4 &scale_offset) {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  entities_[entity_id]->metadata_.detail_scale_offset = scale_offset;
+  return 0;
+}
+
+int Scene::GetEntityDetailScaleOffset(uint32_t entity_id,
+                                      glm::vec4 &scale_offset) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  scale_offset = entities_.at(entity_id)->metadata_.detail_scale_offset;
+  return 0;
+}
+
 int Scene::SetEntityMesh(uint32_t entity_id, uint32_t mesh_id) {
   if (entities_.find(entity_id) == entities_.end()) {
     return -1;
   }
-  entities_[entity_id]->mesh_id_ = mesh_id;
+  entities_[entity_id]->metadata_.mesh_id = mesh_id;
+  return 0;
+}
+
+int Scene::GetEntityMesh(uint32_t entity_id, uint32_t &mesh_id) const {
+  if (entities_.find(entity_id) == entities_.end()) {
+    return -1;
+  }
+  mesh_id = entities_.at(entity_id)->metadata_.mesh_id;
   return 0;
 }
 
@@ -256,4 +300,5 @@ int Scene::SetEnvmapSettings(const EnvMapSettings &settings) {
   envmap_->settings_ = settings;
   return 0;
 }
+
 }  // namespace sparks

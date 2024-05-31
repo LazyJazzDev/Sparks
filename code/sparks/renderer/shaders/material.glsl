@@ -4,7 +4,8 @@
 struct Material {
   vec3 base_color;
   float alpha;
-  vec4 detail_scale_offset;
+  vec3 normal;
+  float padding0;
 };
 
 #endif

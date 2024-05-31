@@ -53,6 +53,8 @@ EntityMetadata Entity::GetTranslatedMetadata() const {
       asset_manager->GetTextureBindingId(metadata_.albedo_texture_id);
   metadata.albedo_detail_texture_id =
       asset_manager->GetTextureBindingId(metadata_.albedo_detail_texture_id);
+  metadata.mesh_id = asset_manager->GetMeshBindingId(metadata_.mesh_id);
+  metadata.detail_scale_offset = metadata_.detail_scale_offset;
   return metadata;
 }
 }  // namespace sparks

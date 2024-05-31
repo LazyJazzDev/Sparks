@@ -49,7 +49,7 @@ class AssetManager {
 
  private:
   void CreateDefaultAssets();
-  void CreateDescriptorObjects(uint32_t max_textures, uint32_t max_meshes);
+  void CreateDescriptorObjects();
 
   void DestroyDefaultAssets();
   void DestroyDescriptorObjects();
@@ -70,5 +70,11 @@ class AssetManager {
 
   std::unique_ptr<vulkan::Sampler> linear_sampler_;
   std::unique_ptr<vulkan::Sampler> nearest_sampler_;
+
+  std::vector<uint32_t> last_frame_bound_texture_num_;
+  std::vector<uint32_t> last_frame_bound_mesh_num_;
+
+  uint32_t max_textures_{};
+  uint32_t max_meshes_{};
 };
 }  // namespace sparks

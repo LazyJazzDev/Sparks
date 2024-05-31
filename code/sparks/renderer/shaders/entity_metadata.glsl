@@ -4,9 +4,10 @@
 struct EntityMetadata {
   mat4 model;
   uint entity_id;
+  uint mesh_id;
   uint albedo_texture_id;
   uint albedo_detail_texture_id;
-  uint padding0;
+  vec4 detail_scale_offset;
 };
 
 #endif
