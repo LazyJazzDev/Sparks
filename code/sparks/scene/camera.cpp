@@ -21,7 +21,11 @@ glm::mat4 Camera::GetView() const {
 }
 
 glm::mat4 Camera::GetProjection(float aspect) const {
-  return glm::perspective(fov_, aspect, near_, far_);
+  return glm::perspectiveRH_ZO(fov_, aspect, near_, std::sqrt(near_ * far_));
+}
+
+glm::mat4 Camera::GetProjectionFar(float aspect) const {
+  return glm::perspectiveRH_ZO(fov_, aspect, std::sqrt(near_ * far_), far_);
 }
 
 }  // namespace sparks

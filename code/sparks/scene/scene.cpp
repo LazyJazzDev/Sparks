@@ -7,7 +7,7 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
     : renderer_(renderer) {
   vulkan::DescriptorPoolSize pool_size;
   pool_size = pool_size + renderer_->SceneDescriptorSetLayout()->GetPoolSize() *
-                              renderer_->Core()->MaxFramesInFlight();
+                              renderer_->Core()->MaxFramesInFlight() * 2;
 
   pool_size =
       pool_size + renderer_->EnvmapDescriptorSetLayout()->GetPoolSize() *
@@ -22,12 +22,12 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
                       renderer_->Core()->MaxFramesInFlight();
 
   renderer_->Core()->Device()->CreateDescriptorPool(
-      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 3),
+      pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 4),
       &descriptor_pool_);
 
   scene_settings_buffer_ =
       std::make_unique<vulkan::DynamicBuffer<SceneSettings>>(
-          renderer_->Core(), 1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+          renderer_->Core(), 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
   entity_material_buffer_ = std::make_unique<vulkan::DynamicBuffer<Material>>(
       renderer_->Core(), max_entities, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -42,10 +42,24 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
         renderer_->SceneDescriptorSetLayout()->Handle(), &descriptor_sets_[i]);
 
     descriptor_sets_[i]->BindUniformBuffer(
-        0, scene_settings_buffer_->GetBuffer(i));
+        0, scene_settings_buffer_->GetBuffer(i), 0, sizeof(SceneSettings));
     descriptor_sets_[i]->BindStorageBuffer(
         1, entity_material_buffer_->GetBuffer(i));
     descriptor_sets_[i]->BindStorageBuffer(
+        2, entity_metadata_buffer_->GetBuffer(i));
+  }
+  far_descriptor_sets_.resize(renderer_->Core()->MaxFramesInFlight());
+  for (int i = 0; i < renderer_->Core()->MaxFramesInFlight(); i++) {
+    descriptor_pool_->AllocateDescriptorSet(
+        renderer_->SceneDescriptorSetLayout()->Handle(),
+        &far_descriptor_sets_[i]);
+
+    far_descriptor_sets_[i]->BindUniformBuffer(
+        0, scene_settings_buffer_->GetBuffer(i), sizeof(SceneSettings),
+        sizeof(SceneSettings));
+    far_descriptor_sets_[i]->BindStorageBuffer(
+        1, entity_material_buffer_->GetBuffer(i));
+    far_descriptor_sets_[i]->BindStorageBuffer(
         2, entity_metadata_buffer_->GetBuffer(i));
   }
 
@@ -66,6 +80,7 @@ Scene::~Scene() {
   envmap_.reset();
   entities_.clear();
   descriptor_sets_.clear();
+  far_descriptor_sets_.clear();
   raytracing_descriptor_sets_.clear();
   entity_material_buffer_.reset();
   entity_metadata_buffer_.reset();
@@ -115,6 +130,10 @@ void Scene::UpdateDynamicBuffers() {
   scene_settings.inv_projection = glm::inverse(scene_settings.projection);
   scene_settings.inv_view = glm::inverse(scene_settings.view);
   scene_settings_buffer_->At(0) = scene_settings;
+  scene_settings.projection = camera_.GetProjectionFar(
+      static_cast<float>(extent.width) / static_cast<float>(extent.height));
+  scene_settings.inv_projection = glm::inverse(scene_settings.projection);
+  scene_settings_buffer_->At(1) = scene_settings;
 
   for (auto &entity : entities_) {
     entity.second->Update();

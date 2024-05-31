@@ -59,6 +59,10 @@ class Scene {
     return descriptor_sets_[frame_id]->Handle();
   }
 
+  VkDescriptorSet FarSceneSettingsDescriptorSet(int frame_id) const {
+    return far_descriptor_sets_[frame_id]->Handle();
+  }
+
   VkDescriptorSet RayTracingDescriptorSet(int frame_id) const {
     return raytracing_descriptor_sets_[frame_id]->Handle();
   }
@@ -104,6 +108,7 @@ class Scene {
   std::unique_ptr<vulkan::DynamicBuffer<SceneSettings>>
       scene_settings_buffer_{};
   std::vector<std::unique_ptr<vulkan::DescriptorSet>> descriptor_sets_{};
+  std::vector<std::unique_ptr<vulkan::DescriptorSet>> far_descriptor_sets_{};
 
   std::map<uint32_t, std::unique_ptr<Entity>> entities_{};
   uint32_t next_entity_id_{};

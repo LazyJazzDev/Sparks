@@ -6,11 +6,13 @@ layout(location = 2) in vec3 in_tangent;
 layout(location = 3) in vec3 in_bitangent;
 layout(location = 4) in vec2 in_tex_coord;
 layout(location = 5) in float in_signal;
+layout(location = 6) flat in uint in_instance_id;
 
 layout(location = 0) out vec4 out_albedo;
 layout(location = 1) out vec4 out_position;
 layout(location = 2) out vec4 out_normal;
 layout(location = 3) out vec4 out_intensity;
+layout(location = 4) out uvec4 out_instance;
 
 #include "entity_metadata.glsl"
 #include "material.glsl"
@@ -44,4 +46,5 @@ void main() {
   out_position = vec4(in_pos, 0.0);
   out_normal = vec4(normal, 0.0);
   out_intensity = vec4(color * material.base_color, material.alpha);
+  out_instance = uvec4(metadata.entity_id, in_instance_id, 0, 0);
 }

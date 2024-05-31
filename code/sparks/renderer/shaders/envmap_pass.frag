@@ -11,6 +11,7 @@ layout(location = 0) out vec4 out_albedo;
 layout(location = 1) out vec4 out_position;
 layout(location = 2) out vec4 out_normal;
 layout(location = 3) out vec4 out_color;
+layout(location = 4) out uvec4 out_instance;
 
 void main() {
   vec3 direction = normalize(ray_direction);
@@ -20,4 +21,5 @@ void main() {
   out_position = vec4(0.0);
   out_normal = vec4(-direction, 0.0);
   out_color = vec4(color, 1.0);
+  out_instance = uvec4(0xffffffffu, 0xffffffffu, 0, 0);
 }

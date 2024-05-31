@@ -88,6 +88,8 @@ void Application::OnUpdate() {
                          .count();
   last_time = current_time;
 
+  CaptureMouseRelatedData();
+
   scene_->Update(delta_time);
   camera_controller_->Update(delta_time);
 
@@ -145,7 +147,7 @@ void Application::OnRender() {
         VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
         VK_IMAGE_ASPECT_COLOR_BIT);
   } else {
-    vulkan::BlitImage(cmd_buffer, film_->intensity_image.get(),
+    vulkan::BlitImage(cmd_buffer, film_->radiance_image.get(),
                       frame_image_.get());
   }
 
@@ -302,12 +304,12 @@ void Application::LoadScene() {
   scene_->SetEntityMesh(water_entity_id, plane_mesh_id);
   scene_->SetEntityMaterial(water_entity_id, water_material);
   scene_->SetEntityTransform(water_entity_id,
-                             glm::scale(glm::mat4{1.0f}, glm::vec3{100.0f}));
+                             glm::scale(glm::mat4{1.0f}, glm::vec3{1000.0f}));
   scene_->SetEntityDetailScaleOffset(water_entity_id,
-                                     {1000.0f, 1000.0f, 0.0f, 0.0f});
+                                     {10000.0f, 10000.0f, 0.0f, 0.0f});
 
-  scene_->Camera()->SetFar(10.0f);
-  scene_->Camera()->SetNear(0.01f);
+  scene_->Camera()->SetFar(500.0f);
+  scene_->Camera()->SetNear(0.05f);
   scene_->Camera()->SetPosition({0.0f, 0.1f, 1.2f});
 
   scene_->SetUpdateCallback([=](Scene *scene, float delta_time) {
@@ -330,6 +332,53 @@ void Application::ImGui() {
                  output_frames.data(), output_frames.size());
   }
   ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x, 0),
+                          ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+  ImGui::SetNextWindowBgAlpha(0.3f);
+  ImGui::Begin("Statistics", nullptr,
+               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+                   ImGuiWindowFlags_NoTitleBar);
+  ImGui::Text("Statistics (%dx%d)", framebuffer_width_, framebuffer_height_);
+  ImGui::Text("Cursor: (%d, %d)", cursor_x_, cursor_y_);
+  ImGui::Text("Hovering: %x %x", hovering_instances_[0],
+              hovering_instances_[1]);
+  ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f, %.2f)", hovering_color_.r,
+              hovering_color_.g, hovering_color_.b, hovering_color_.a);
+  ImGui::End();
+}
+
+void Application::CaptureMouseRelatedData() {
+  double x_pos, y_pos;
+  auto window = core_->Swapchain()->Surface()->Window();
+  glfwGetCursorPos(window, &x_pos, &y_pos);
+  glfwGetWindowSize(window, &window_width_, &window_height_);
+  glfwGetFramebufferSize(window, &framebuffer_width_, &framebuffer_height_);
+  x_pos *= static_cast<double>(framebuffer_width_) /
+           static_cast<double>(window_width_);
+  y_pos *= static_cast<double>(framebuffer_height_) /
+           static_cast<double>(window_height_);
+
+  int x_focus = std::lround(x_pos), y_focus = std::lround(y_pos);
+  VkExtent2D extent = core_->Swapchain()->Extent();
+
+  hovering_instances_[0] = 0xffffffffu;
+  hovering_instances_[1] = 0x0u;
+  hovering_color_ = glm::vec4{0.0f};
+  if (x_focus >= 0 && x_focus < extent.width && y_focus >= 0 &&
+      y_focus < extent.height) {
+    film_->stencil_image->FetchPixelData(
+        core_->GraphicsCommandPool(), core_->GraphicsQueue(),
+        VkRect2D{{x_focus, y_focus}, {1, 1}}, hovering_instances_,
+        sizeof(hovering_instances_));
+    raytracing_film_->result_image->FetchPixelData(
+        core_->GraphicsCommandPool(), core_->GraphicsQueue(),
+        VkRect2D{{x_focus, y_focus}, {1, 1}}, &hovering_color_,
+        sizeof(hovering_color_), VK_IMAGE_LAYOUT_GENERAL);
+  }
+
+  cursor_x_ = x_focus;
+  cursor_y_ = y_focus;
 }
 
 }  // namespace sparks

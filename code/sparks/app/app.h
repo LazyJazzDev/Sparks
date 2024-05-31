@@ -35,6 +35,7 @@ class Application {
   void DestroyRenderer();
 
   void ImGui();
+  void CaptureMouseRelatedData();
 
   AppSettings settings_{};
   GLFWwindow *window_{};
@@ -52,6 +53,16 @@ class Application {
   std::unique_ptr<CameraController> camera_controller_;
 
   int output_frame_{0};
+
+  int window_width_;
+  int window_height_;
+  int framebuffer_width_;
+  int framebuffer_height_;
+  int cursor_x_;
+  int cursor_y_;
+  uint32_t hovering_instances_[2];
+  uint32_t selected_instances_[2];
+  glm::vec4 hovering_color_;
 };
 
 }  // namespace sparks

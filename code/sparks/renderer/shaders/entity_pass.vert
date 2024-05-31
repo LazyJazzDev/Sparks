@@ -28,6 +28,7 @@ layout(location = 2) out vec3 out_tangent;
 layout(location = 3) out vec3 out_bitangent;
 layout(location = 4) out vec2 out_tex_coord;
 layout(location = 5) out float out_signal;
+layout(location = 6) out uint out_instance_id;
 
 void main() {
   out_signal = (gl_InstanceIndex == 1) ? -1.0 : 1.0;
@@ -38,6 +39,7 @@ void main() {
   out_bitangent =
       mat3(metadata.model) * (in_signal * cross(in_normal, in_tangent));
   out_tex_coord = in_tex_coord;
+  out_instance_id = gl_InstanceIndex;
   gl_Position = (scene_settings.projection * scene_settings.world_to_camera *
                  vec4(out_pos, 1.0)) *
                 vec4(1.0, -1.0, 1.0, 1.0);

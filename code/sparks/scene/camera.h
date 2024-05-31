@@ -15,6 +15,8 @@ class Camera {
 
   glm::mat4 GetProjection(float aspect) const;
 
+  glm::mat4 GetProjectionFar(float aspect) const;
+
   glm::vec3 GetPosition() const {
     return position_;
   }

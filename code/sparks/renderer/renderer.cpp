@@ -89,7 +89,7 @@ void Renderer::CreateRenderPass() {
       VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
   descriptions.emplace_back(VkAttachmentDescription{
-      0, kIntensityFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR,
+      0, kRadianceFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR,
       VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
       VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
@@ -98,6 +98,11 @@ void Renderer::CreateRenderPass() {
       VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
       VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
+  descriptions.emplace_back(VkAttachmentDescription{
+      0, kStencilFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL});
 
   vulkan::SubpassSettings subpass;
   subpass.color_attachment_references.push_back(
@@ -108,6 +113,8 @@ void Renderer::CreateRenderPass() {
       VkAttachmentReference{2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
   subpass.color_attachment_references.push_back(
       VkAttachmentReference{3, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+  subpass.color_attachment_references.push_back(
+      VkAttachmentReference{5, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
   subpass.depth_attachment_reference = VkAttachmentReference{
       4, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
   subpasses.push_back(subpass);
@@ -299,17 +306,30 @@ int Renderer::CreateFilm(uint32_t width,
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
       &film.normal_image);
   Core()->Device()->CreateImage(
-      kIntensityFormat, VkExtent2D{width, height},
+      kRadianceFormat, VkExtent2D{width, height},
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      &film.intensity_image);
+      &film.radiance_image);
   Core()->Device()->CreateImage(kDepthFormat, VkExtent2D{width, height},
                                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
                                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                                 &film.depth_image);
+  Core()->Device()->CreateImage(
+      kStencilFormat, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.stencil_image);
+
+  Core()->SingleTimeCommands([&](VkCommandBuffer cmd_buffer) {
+    vulkan::TransitImageLayout(
+        cmd_buffer, film.stencil_image->Handle(), VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, VK_ACCESS_TRANSFER_READ_BIT,
+        VK_IMAGE_ASPECT_COLOR_BIT);
+  });
+
   RenderPass()->CreateFramebuffer(
       {film.albedo_image->ImageView(), film.position_image->ImageView(),
-       film.normal_image->ImageView(), film.intensity_image->ImageView(),
-       film.depth_image->ImageView()},
+       film.normal_image->ImageView(), film.radiance_image->ImageView(),
+       film.depth_image->ImageView(), film.stencil_image->ImageView()},
       VkExtent2D{width, height}, &film.framebuffer);
   pp_film.construct(std::move(film));
   return 0;
@@ -323,7 +343,7 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
   film.renderer = this;
 
   Core()->Device()->CreateImage(
-      VK_FORMAT_R8G8B8A8_UNORM, VkExtent2D{width, height},
+      VK_FORMAT_R32G32B32A32_SFLOAT, VkExtent2D{width, height},
       VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
       &film.result_image);
   Core()->Device()->CreateDescriptorPool(
@@ -352,12 +372,13 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
 void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
                            Film *film,
                            Scene *scene) {
-  std::vector<VkClearValue> clear_values(5);
+  std::vector<VkClearValue> clear_values(6);
   clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
   clear_values[1].color = {0.0f, 0.0f, 0.0f, 1.0f};
   clear_values[2].color = {0.0f, 0.0f, 0.0f, 1.0f};
   clear_values[3].color = {0.6f, 0.7f, 0.8f, 1.0f};
   clear_values[4].depthStencil = {1.0f, 0};
+  clear_values[5].color = {-1, -1, -1, -1};
   VkRenderPassBeginInfo render_pass_begin_info{
       VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
       nullptr,
@@ -386,15 +407,38 @@ void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
   // bind descriptor set
   VkDescriptorSet descriptor_sets[] = {
       scene->SceneSettingsDescriptorSet(core_->CurrentFrame())};
+  VkDescriptorSet far_descriptor_sets[] = {
+      scene->FarSceneSettingsDescriptorSet(core_->CurrentFrame())};
 
   vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           entity_pipeline_layout_->Handle(), 0, 1,
-                          descriptor_sets, 0, nullptr);
+                          far_descriptor_sets, 0, nullptr);
 
   scene->DrawEnvmap(cmd_buffer, core_->CurrentFrame());
 
   vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     entity_pipeline_->Handle());
+
+  scene->DrawEntities(cmd_buffer, core_->CurrentFrame());
+
+  VkClearAttachment clearAttachment = {};
+  VkClearRect clearRect = {};
+
+  clearAttachment.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  clearAttachment.clearValue.depthStencil = {1.0f, 0};
+
+  // Define the area to clear (entire framebuffer in this example)
+  clearRect.rect.offset = {0, 0};
+  clearRect.rect.extent = film->framebuffer->Extent();
+  clearRect.baseArrayLayer = 0;
+  clearRect.layerCount = 1;
+
+  // Ensure you are inside an active render pass
+  vkCmdClearAttachments(cmd_buffer, 1, &clearAttachment, 1, &clearRect);
+
+  vkCmdBindDescriptorSets(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          entity_pipeline_layout_->Handle(), 0, 1,
+                          descriptor_sets, 0, nullptr);
 
   scene->DrawEntities(cmd_buffer, core_->CurrentFrame());
 
