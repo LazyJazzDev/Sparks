@@ -15,6 +15,7 @@
     "mikktspace",
     "tinyobjloader",
     "stb",
-    "tinyfiledialogs"
+    "tinyfiledialogs",
+    "imguizmo"
   ]
 }

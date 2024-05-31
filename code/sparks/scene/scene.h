@@ -36,6 +36,9 @@ class Scene {
   int CreateEntity(Entity **pp_entity = nullptr);
 
   Entity *GetEntity(uint32_t id) const {
+    if (entities_.find(id) == entities_.end()) {
+      return nullptr;
+    }
     return entities_.at(id).get();
   }
 
@@ -98,7 +101,9 @@ class Scene {
 
  private:
   void UpdateDynamicBuffers();
+
   void UpdateTopLevelAccelerationStructure();
+
   void UpdateDescriptorSetBindings();
 
   class Renderer *renderer_{};

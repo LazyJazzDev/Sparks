@@ -3,6 +3,7 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
+#include "ImGuizmo.h"
 #include "glm/gtc/matrix_transform.hpp"
 
 namespace sparks {
@@ -110,6 +111,7 @@ void Application::OnUpdate() {
   asset_manager_->Update(core_->CurrentFrame());
 
   imgui_manager_->BeginFrame();
+  ImGuizmo::BeginFrame();
   ImGui();
   asset_manager_->ImGui();
   imgui_manager_->EndFrame();
@@ -238,6 +240,7 @@ void Application::CreateImGuiManager() {
   imgui_manager_ = std::make_unique<vulkan::ImGuiManager>(
       core_.get(), frame_image_.get(),
       FindAssetsFile("fonts/NotoSans-Regular.ttf").c_str(), 20.0f);
+  ImGuizmo::Enable(true);
 }
 
 void Application::DestroyImGuiManager() {
@@ -412,8 +415,11 @@ void Application::ImGui() {
   }
   ImGui::End();
 
-  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x, 0),
-                          ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+  ImVec2 statistic_window_size = ImGuizmoWindow();
+
+  ImGui::SetNextWindowPos(
+      ImVec2(ImGui::GetIO().DisplaySize.x, statistic_window_size.y),
+      ImGuiCond_Always, ImVec2(1.0f, 0.0f));
   ImGui::SetNextWindowBgAlpha(0.3f);
   ImGui::Begin("Statistics", nullptr,
                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
@@ -494,6 +500,91 @@ void Application::RegisterInteractions() {
     pre_selected_instances[0] = 0xfffffffeu;
     pre_selected_instances[1] = 0xfffffffeu;
   });
+}
+
+ImVec2 Application::ImGuizmoWindow() {
+  ImVec2 window_size{0.0f, 0.0f};
+  if ((selected_instances_[0] & 0xffffff00u) != 0xffffff00u) {
+    auto entity = scene_->GetEntity(selected_instances_[0]);
+    if (entity) {
+      editing_transform_ = entity->GetTranslatedMetadata().transform;
+      ImGui::SetNextWindowPos(
+          ImVec2(ImGui::GetIO().DisplaySize.x, window_size.y), ImGuiCond_Always,
+          ImVec2(1.0f, 0.0f));
+      ImGui::SetNextWindowBgAlpha(0.3);
+      ImGui::Begin("Gizmo", nullptr,
+                   ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove |
+                       ImGuiWindowFlags_NoTitleBar);
+      window_size = ImGui::GetWindowSize();
+      ImGui::Text("Gizmo");
+      ImGui::Separator();
+      bool value_changed = false;
+      static ImGuizmo::OPERATION current_guizmo_operation(ImGuizmo::ROTATE);
+      static ImGuizmo::MODE current_guizmo_mode(ImGuizmo::WORLD);
+      if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+        current_guizmo_operation = ImGuizmo::TRANSLATE;
+      }
+      if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+        current_guizmo_operation = ImGuizmo::ROTATE;
+      }
+      if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+        current_guizmo_operation = ImGuizmo::SCALE;
+      }
+      float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+      auto &io = ImGui::GetIO();
+
+      if (ImGui::RadioButton("Translate",
+                             current_guizmo_operation == ImGuizmo::TRANSLATE)) {
+        current_guizmo_operation = ImGuizmo::TRANSLATE;
+      }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Rotate",
+                             current_guizmo_operation == ImGuizmo::ROTATE)) {
+        current_guizmo_operation = ImGuizmo::ROTATE;
+      }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Scale",
+                             current_guizmo_operation == ImGuizmo::SCALE)) {
+        current_guizmo_operation = ImGuizmo::SCALE;
+      }
+      ImGuizmo::DecomposeMatrixToComponents(
+          reinterpret_cast<float *>(&editing_transform_), matrixTranslation,
+          matrixRotation, matrixScale);
+      value_changed |= ImGui::InputFloat3("Translation", matrixTranslation);
+      value_changed |= ImGui::InputFloat3("Rotation", matrixRotation);
+      value_changed |= ImGui::InputFloat3("Scale", matrixScale);
+      ImGuizmo::RecomposeMatrixFromComponents(
+          matrixTranslation, matrixRotation, matrixScale,
+          reinterpret_cast<float *>(&editing_transform_));
+
+      if (current_guizmo_operation != ImGuizmo::SCALE) {
+        if (ImGui::RadioButton("Local",
+                               current_guizmo_mode == ImGuizmo::LOCAL)) {
+          current_guizmo_mode = ImGuizmo::LOCAL;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("World",
+                               current_guizmo_mode == ImGuizmo::WORLD)) {
+          current_guizmo_mode = ImGuizmo::WORLD;
+        }
+      }
+
+      glm::mat4 imguizmo_view_ = scene_->Camera()->GetView();
+      glm::mat4 imguizmo_proj_ =
+          glm::scale(glm::mat4{1.0f}, glm::vec3{1.0f, 1.0f, 1.0f}) *
+          scene_->Camera()->GetProjection(float(io.DisplaySize.x) /
+                                          float(io.DisplaySize.y));
+      ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+      value_changed |= ImGuizmo::Manipulate(
+          reinterpret_cast<float *>(&imguizmo_view_),
+          reinterpret_cast<float *>(&imguizmo_proj_), current_guizmo_operation,
+          current_guizmo_mode, reinterpret_cast<float *>(&editing_transform_),
+          nullptr, nullptr);
+      ImGui::End();
+      scene_->SetEntityTransform(selected_instances_[0], editing_transform_);
+    }
+  }
+  return window_size;
 }
 
 }  // namespace sparks

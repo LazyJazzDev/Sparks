@@ -7,6 +7,6 @@ set(SPARKS_LIBS ${SPARKS_LIBS} PARENT_SCOPE)
 
 target_include_directories(${SPARKS_SUBLIB_NAME} PUBLIC ${SPARKS_INCLUDE_DIR})
 
-target_link_libraries(${SPARKS_SUBLIB_NAME} PUBLIC LongMarch sparks_utils sparks_assets sparks_asset_manager sparks_scene sparks_renderer)
+target_link_libraries(${SPARKS_SUBLIB_NAME} PUBLIC LongMarch sparks_utils sparks_assets sparks_asset_manager sparks_scene sparks_renderer ${IMGUIZMO_LIB_NAME})
 
 PACK_SHADER_CODE(${SPARKS_SUBLIB_NAME})

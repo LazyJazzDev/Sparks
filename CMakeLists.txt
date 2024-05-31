@@ -23,4 +23,8 @@ find_package(mikktspace CONFIG REQUIRED)
 set(MIKKTSPACE_LIB_NAME mikktspace::mikktspace)
 list(APPEND SPARKS_LIB_LIST ${MIKKTSPACE_LIB_NAME})
 
+find_package(imguizmo CONFIG REQUIRED)
+set(IMGUIZMO_LIB_NAME PRIVATE imguizmo::imguizmo)
+list(APPEND SPARKS_LIB_LIST ${IMGUIZMO_LIB_NAME})
+
 add_subdirectory(code)

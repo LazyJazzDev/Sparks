@@ -43,6 +43,7 @@ class Application {
   void DestroyGuiRenderer();
 
   void ImGui();
+  ImVec2 ImGuizmoWindow();
   void CaptureMouseRelatedData();
 
   AppSettings settings_{};
@@ -76,6 +77,9 @@ class Application {
   glm::vec4 hovering_color_;
 
   bool reset_accumulated_buffer_{false};
+
+  Material editing_material_;
+  glm::mat4 editing_transform_{1.0f};
 };
 
 }  // namespace sparks
