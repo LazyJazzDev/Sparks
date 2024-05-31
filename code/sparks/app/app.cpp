@@ -60,6 +60,8 @@ void Application::OnInit() {
   CreateImGuiManager();
   CreateAssetManager();
   CreateRenderer();
+  CreateGuiRenderer();
+  RegisterInteractions();
   LoadScene();
 
   // Texture skybox[5];
@@ -74,6 +76,7 @@ void Application::OnInit() {
 }
 
 void Application::OnClose() {
+  DestroyGuiRenderer();
   DestroyRenderer();
   DestroyAssetManager();
   DestroyImGuiManager();
@@ -81,6 +84,11 @@ void Application::OnClose() {
 }
 
 void Application::OnUpdate() {
+  if (reset_accumulated_buffer_) {
+    raytracing_film_->ClearAccumulationBuffer();
+    reset_accumulated_buffer_ = false;
+  }
+
   auto current_time = std::chrono::high_resolution_clock::now();
   static auto last_time = current_time;
   float delta_time = std::chrono::duration<float, std::chrono::seconds::period>(
@@ -89,6 +97,12 @@ void Application::OnUpdate() {
   last_time = current_time;
 
   CaptureMouseRelatedData();
+  AppGuiInfo gui_info;
+  gui_info.hovering_instance_id[0] = hovering_instances_[0];
+  gui_info.hovering_instance_id[1] = hovering_instances_[1];
+  gui_info.selected_instance_id[0] = selected_instances_[0];
+  gui_info.selected_instance_id[1] = selected_instances_[1];
+  gui_renderer_->UpdateGuiInfo(gui_info);
 
   scene_->Update(delta_time);
   camera_controller_->Update(delta_time);
@@ -103,6 +117,7 @@ void Application::OnUpdate() {
   core_->TransferCommandPool()->SingleTimeCommands(
       core_->TransferQueue(), [&](VkCommandBuffer cmd_buffer) {
         scene_->SyncData(cmd_buffer, core_->CurrentFrame());
+        gui_renderer_->SyncData(cmd_buffer, core_->CurrentFrame());
       });
 }
 
@@ -152,10 +167,27 @@ void Application::OnRender() {
   }
 
   vulkan::TransitImageLayout(
+      cmd_buffer, film_->stencil_image->Handle(),
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+      VK_IMAGE_ASPECT_COLOR_BIT);
+
+  vulkan::TransitImageLayout(
       cmd_buffer, frame_image_->Handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
       VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+      VK_IMAGE_ASPECT_COLOR_BIT);
+
+  gui_renderer_->Render(cmd_buffer);
+
+  vulkan::TransitImageLayout(
+      cmd_buffer, film_->stencil_image->Handle(), VK_IMAGE_LAYOUT_GENERAL,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT);
 
   imgui_manager_->Render(cmd_buffer);
@@ -192,6 +224,10 @@ void Application::CreateFrameImage(uint32_t width, uint32_t height) {
         VkExtent2D{static_cast<uint32_t>(width), static_cast<uint32_t>(height)},
         &frame_image_);
   }
+  if (gui_renderer_) {
+    gui_renderer_->BindRelatedImages(frame_image_.get(),
+                                     film_->stencil_image.get());
+  }
 }
 
 void Application::DestroyFrameImage() {
@@ -226,6 +262,10 @@ void Application::CreateRenderer() {
   core_->FrameSizeEvent().RegisterCallback([this](int width, int height) {
     film_->Resize(width, height);
     raytracing_film_->Resize(width, height);
+    reset_accumulated_buffer_ = true;
+
+    gui_renderer_->BindRelatedImages(frame_image_.get(),
+                                     film_->stencil_image.get());
   });
   renderer_->CreateScene(2, &scene_);
 
@@ -239,6 +279,17 @@ void Application::DestroyRenderer() {
   raytracing_film_.reset();
   film_.reset();
   renderer_.reset();
+}
+
+void Application::CreateGuiRenderer() {
+  gui_renderer_ = std::make_unique<AppGuiRenderer>(this);
+
+  gui_renderer_->BindRelatedImages(frame_image_.get(),
+                                   film_->stencil_image.get());
+}
+
+void Application::DestroyGuiRenderer() {
+  gui_renderer_.reset();
 }
 
 void Application::LoadScene() {
@@ -393,8 +444,8 @@ void Application::CaptureMouseRelatedData() {
   int x_focus = std::lround(x_pos), y_focus = std::lround(y_pos);
   VkExtent2D extent = core_->Swapchain()->Extent();
 
-  hovering_instances_[0] = 0xffffffffu;
-  hovering_instances_[1] = 0x0u;
+  hovering_instances_[0] = 0xfffffffeu;
+  hovering_instances_[1] = 0xfffffffeu;
   hovering_color_ = glm::vec4{0.0f};
   if (x_focus >= 0 && x_focus < extent.width && y_focus >= 0 &&
       y_focus < extent.height) {
@@ -402,7 +453,7 @@ void Application::CaptureMouseRelatedData() {
         core_->GraphicsCommandPool(), core_->GraphicsQueue(),
         VkRect2D{{x_focus, y_focus}, {1, 1}}, hovering_instances_,
         sizeof(hovering_instances_));
-    raytracing_film_->result_image->FetchPixelData(
+    raytracing_film_->raw_result_image->FetchPixelData(
         core_->GraphicsCommandPool(), core_->GraphicsQueue(),
         VkRect2D{{x_focus, y_focus}, {1, 1}}, &hovering_color_,
         sizeof(hovering_color_), VK_IMAGE_LAYOUT_GENERAL);
@@ -410,6 +461,39 @@ void Application::CaptureMouseRelatedData() {
 
   cursor_x_ = x_focus;
   cursor_y_ = y_focus;
+}
+
+void Application::RegisterInteractions() {
+  core_->MouseButtonEvent().RegisterCallback(
+      [this](int button, int action, int mods) {
+        auto &io = ImGui::GetIO();
+        if (io.WantCaptureMouse) {
+          return;
+        }
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+          if (hovering_instances_[0] != 0xffffffffu) {
+            pre_selected_instances[0] = hovering_instances_[0];
+            pre_selected_instances[1] = hovering_instances_[1];
+          }
+        } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+          if (hovering_instances_[0] == pre_selected_instances[0] &&
+              hovering_instances_[1] == pre_selected_instances[1]) {
+            selected_instances_[0] = pre_selected_instances[0];
+            selected_instances_[1] = pre_selected_instances[1];
+          }
+        } else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+          selected_instances_[0] = 0xfffffffeu;
+          selected_instances_[1] = 0xfffffffeu;
+        }
+      });
+  core_->CursorPosEvent().RegisterCallback([this](double x, double y) {
+    auto &io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+      return;
+    }
+    pre_selected_instances[0] = 0xfffffffeu;
+    pre_selected_instances[1] = 0xfffffffeu;
+  });
 }
 
 }  // namespace sparks

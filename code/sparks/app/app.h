@@ -1,4 +1,5 @@
 #pragma once
+#include "sparks/app/app_gui_renderer.h"
 #include "sparks/app/app_settings.h"
 #include "sparks/app/camera_controller.h"
 #include "sparks/asset_manager/asset_manager.h"
@@ -15,6 +16,10 @@ class Application {
   void Run();
   void HeadlessMainLoop();
 
+  vulkan::Core *Core() {
+    return core_.get();
+  }
+
  private:
   void OnInit();
   void OnUpdate();
@@ -26,6 +31,8 @@ class Application {
   void CreateImGuiManager();
   void CreateAssetManager();
   void CreateRenderer();
+  void CreateGuiRenderer();
+  void RegisterInteractions();
 
   void LoadScene();
 
@@ -33,6 +40,7 @@ class Application {
   void DestroyImGuiManager();
   void DestroyAssetManager();
   void DestroyRenderer();
+  void DestroyGuiRenderer();
 
   void ImGui();
   void CaptureMouseRelatedData();
@@ -52,6 +60,8 @@ class Application {
   std::unique_ptr<Scene> scene_;
   std::unique_ptr<CameraController> camera_controller_;
 
+  std::unique_ptr<AppGuiRenderer> gui_renderer_;
+
   int output_frame_{0};
 
   int window_width_;
@@ -61,8 +71,11 @@ class Application {
   int cursor_x_;
   int cursor_y_;
   uint32_t hovering_instances_[2];
-  uint32_t selected_instances_[2];
+  uint32_t selected_instances_[2]{0xfffffffeu, 0xfffffffeu};
+  uint32_t pre_selected_instances[2]{0xffffffffu, 0xffffffffu};
   glm::vec4 hovering_color_;
+
+  bool reset_accumulated_buffer_{false};
 };
 
 }  // namespace sparks

@@ -342,6 +342,8 @@ void Renderer::CreateRayTracingPipeline() {
        {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
         nullptr},
        {2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+        nullptr},
+       {3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
         nullptr}},
       &raytracing_film_descriptor_set_layout_);
 
@@ -422,10 +424,11 @@ int Renderer::CreateFilm(uint32_t width,
                                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
                                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                                 &film.depth_image);
-  Core()->Device()->CreateImage(
-      kStencilFormat, VkExtent2D{width, height},
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      &film.stencil_image);
+  Core()->Device()->CreateImage(kStencilFormat, VkExtent2D{width, height},
+                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                    VK_IMAGE_USAGE_STORAGE_BIT,
+                                &film.stencil_image);
   Core()->Device()->CreateImage(
       kResultFormat, VkExtent2D{width, height},
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -488,6 +491,11 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
   Core()->Device()->CreateImage(
       VK_FORMAT_R32G32B32A32_SFLOAT, VkExtent2D{width, height},
       VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      &film.raw_result_image);
+
+  Core()->Device()->CreateImage(
+      VK_FORMAT_R8G8B8A8_UNORM, VkExtent2D{width, height},
+      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
       &film.result_image);
   Core()->Device()->CreateDescriptorPool(
       raytracing_film_descriptor_set_layout_->GetPoolSize(), 1,
@@ -498,6 +506,7 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
   film.descriptor_set->BindStorageImage(1,
                                         film.accumulated_radiance_image.get());
   film.descriptor_set->BindStorageImage(2, film.accumulated_weight_image.get());
+  film.descriptor_set->BindStorageImage(3, film.raw_result_image.get());
 
   Core()->Device()->NameObject(film.descriptor_set->Handle(),
                                "Ray Tracing Film Descriptor Set");
@@ -518,6 +527,11 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
         cmd_buffer, film.accumulated_weight_image->Handle(),
         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+    vulkan::TransitImageLayout(
+        cmd_buffer, film.raw_result_image->Handle(), VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_MEMORY_READ_BIT,
         VK_ACCESS_SHADER_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
   });

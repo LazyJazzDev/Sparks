@@ -45,6 +45,8 @@ layout(set = 4,
 
 layout(set = 4, binding = 2, r32f) uniform image2D accumulated_weight_image;
 
+layout(set = 4, binding = 3, rgba32f) uniform image2D raw_result_image;
+
 layout(location = 0) rayPayloadEXT RayPayload ray_payload;
 
 #include "hit_record.glsl"
@@ -137,9 +139,10 @@ void main() {
   accumulated_radiance += vec4(sampled_result, 1.0);
   accumulated_weight += 1.0f;
 
-  vec4 resolved_result =
-      pow(scene_settings.exposure * accumulated_radiance / accumulated_weight,
-          vec4(1.0 / scene_settings.gamma));
+  vec4 raw_result = accumulated_radiance / accumulated_weight;
+
+  vec4 resolved_result = pow(scene_settings.exposure * raw_result,
+                             vec4(1.0 / scene_settings.gamma));
 
   imageStore(result_image, ivec2(gl_LaunchIDEXT.xy),
              vec4(resolved_result.rgb, 1.0));
@@ -147,4 +150,5 @@ void main() {
              accumulated_radiance);
   imageStore(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy),
              vec4(accumulated_weight));
+  imageStore(raw_result_image, ivec2(gl_LaunchIDEXT.xy), raw_result);
 }
