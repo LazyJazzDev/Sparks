@@ -250,6 +250,7 @@ void Application::LoadScene() {
                               LDRColorSpace::UNORM);
   auto envmap_id = asset_manager->LoadTexture(envmap_texture, "Envmap");
   envmap->SetEnvmapTexture(envmap_id);
+  scene_->SetEnvmapSettings({0.0f, 1.0f, uint32_t(envmap_id), 0});
 
   int entity_id = scene_->CreateEntity();
 
