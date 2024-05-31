@@ -1,8 +1,10 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 
 #include "entity_metadata.glsl"
 #include "material.glsl"
+#include "ray_payload.glsl"
 #include "scene_settings.glsl"
 
 layout(set = 0, binding = 0, std140) uniform SceneSettingsUniform {
@@ -28,7 +30,7 @@ layout(set = 2, binding = 1, std430) buffer IndexBuffers {
 }
 index_buffers[];
 
-layout(set = 2, binding = 2) uniform sampler2D sampled_textures[];
+layout(set = 2, binding = 2) uniform texture2D sampled_textures[];
 
 layout(set = 2, binding = 3) uniform sampler samplers[];
 
@@ -37,7 +39,33 @@ layout(set = 2, binding = 3) uniform sampler samplers[];
 
 layout(set = 4, binding = 0, rgba8) uniform image2D result_image;
 
-layout(location = 0) rayPayloadEXT vec3 colorValue;
+layout(location = 0) rayPayloadEXT RayPayload ray_payload;
+
+void TraceRay(vec3 origin, vec3 direction, float t_min, float t_max) {
+  traceRayEXT(scene, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin, t_min,
+              direction, t_max, 0);
+}
+
+vec3 SampleRay(vec3 origin, vec3 direction) {
+  vec3 radiance = vec3(0.0);
+  vec3 throughput = vec3(1.0);
+
+  TraceRay(origin, direction, T_MIN, T_MAX);
+
+  for (int bounce = 0; bounce < 1; bounce++) {
+    if (ray_payload.t == -1.0) {
+      radiance += throughput *
+                  texture(sampler2D(sampled_textures[envmap_data.envmap_id],
+                                    samplers[0]),
+                          SampleEnvmapUV(direction))
+                      .xyz *
+                  envmap_data.exposure;
+      break;
+    }
+  }
+
+  return radiance;
+}
 
 void main() {
   const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -55,10 +83,8 @@ void main() {
   float tmin = 0.001;
   float tmax = 10000.0;
 
-  colorValue = vec3(0.0);
+  ray_payload.t = -1.0;
+  vec3 sampled_result = SampleRay(origin.xyz, direction.xyz);
 
-  traceRayEXT(scene, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, tmin,
-              direction.xyz, tmax, 0);
-
-  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy), vec4(colorValue, 1.0));
+  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy), vec4(sampled_result, 1.0));
 }
