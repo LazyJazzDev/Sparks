@@ -541,7 +541,7 @@ ImVec2 Application::ImGuiSettingsWindow() {
   ImGui::SeparatorText("Note");
   ImGui::Text("W/A/S/D/LCTRL/SPACE for camera movement.");
   ImGui::Text("Cursor drag on frame for camera rotation.");
-  //        ImGui::Text("G for show/hidse GUI windows.");
+  ImGui::Text("G to toggle GUI visibility.");
 
   if (ImGui::CollapsingHeader("Scene Settings")) {
     scene_->GetSceneSettings(editing_scene_settings_);
@@ -751,6 +751,40 @@ ImVec2 Application::ImGuiStatisticWindow(ImVec2 window_pos) {
                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
                    ImGuiWindowFlags_NoTitleBar);
   ImGui::Text("Statistics (%dx%d)", framebuffer_width_, framebuffer_height_);
+  SceneSettings scene_settings;
+  scene_->GetSceneSettings(scene_settings);
+  auto current_time = std::chrono::steady_clock::now();
+  static auto last_sample = scene_settings.accumulated_sample;
+  static auto last_sample_time = current_time;
+  static float sample_rate = 0.0f;
+  float duration_us = 0;
+  if (last_sample != scene_settings.accumulated_sample) {
+    if (last_sample < scene_settings.accumulated_sample) {
+      auto duration_ms =
+          (current_time - last_sample_time) / std::chrono::milliseconds(1);
+      duration_us = float((current_time - last_sample_time) /
+                          std::chrono::microseconds(1));
+      sample_rate = (float(framebuffer_width_) * float(framebuffer_height_) *
+                     float(scene_settings.num_sample)) /
+                    (0.001f * float(duration_ms));
+    } else {
+      sample_rate = NAN;
+    }
+    last_sample = scene_settings.accumulated_sample;
+    last_sample_time = current_time;
+  }
+  if (std::isnan(sample_rate)) {
+    ImGui::Text("Primary Ray Rate: N/A");
+  } else if (sample_rate >= 1e9f) {
+    ImGui::Text("Primary Ray Rate: %.2f Gr/s", sample_rate * 1e-9f);
+  } else if (sample_rate >= 1e6f) {
+    ImGui::Text("Primary Ray Rate: %.2f Mr/s", sample_rate * 1e-6f);
+  } else if (sample_rate >= 1e3f) {
+    ImGui::Text("Primary Ray Rate: %.2f Kr/s", sample_rate * 1e-3f);
+  } else {
+    ImGui::Text("Primary Ray Rate: %.2f r/s", sample_rate);
+  }
+
   ImGui::Text("Cursor: (%d, %d)", cursor_x_, cursor_y_);
   if (cursor_x_ >= 0 && cursor_x_ < framebuffer_width_ && cursor_y_ >= 0 &&
       cursor_y_ < framebuffer_height_) {
@@ -759,10 +793,9 @@ ImVec2 Application::ImGuiStatisticWindow(ImVec2 window_pos) {
     ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f)", hovering_color_.r,
                 hovering_color_.g, hovering_color_.b);
   }
-  SceneSettings scene_settings;
-  scene_->GetSceneSettings(scene_settings);
-  ImGui::Text("Accumulated Sample: %u", scene_settings.accumulated_sample);
-  scene_->SetSceneSettings(scene_settings);
+  ImGui::Text("Accumulated Samples: %u", scene_settings.accumulated_sample);
+  ImGui::Text("Frame Duration: %.3lf ms", duration_us * 0.001f);
+  ImGui::Text("Fps: %.2lf", 1.0f / (duration_us * 1e-6f));
   window_size = ImGui::GetWindowSize();
   ImGui::End();
   return window_size;
