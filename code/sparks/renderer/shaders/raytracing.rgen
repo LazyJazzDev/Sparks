@@ -8,6 +8,8 @@
 #include "ray_payload.glsl"
 #include "scene_settings.glsl"
 
+Material material;
+
 layout(set = 0, binding = 0, std140) uniform SceneSettingsUniform {
   SceneSettings scene_settings;
 };

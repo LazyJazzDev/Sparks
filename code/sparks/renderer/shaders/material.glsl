@@ -35,6 +35,6 @@ struct Material {
 
   vec3 normal;
   uint type;
-} material;
+};
 
 #endif
