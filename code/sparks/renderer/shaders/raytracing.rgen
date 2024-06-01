@@ -61,6 +61,10 @@ layout(location = 0) rayPayloadEXT RayPayload ray_payload;
 #include "shadow_ray.glsl"
 #include "trace_ray.glsl"
 
+float PowerHeuristic(float base, float ref) {
+  return (base * base) / (base * base + ref * ref);
+}
+
 ivec2 EnvmapSize() {
   return ivec2(textureSize(
       sampler2D(sampled_textures[envmap_data.envmap_id], samplers[0]), 0));
@@ -116,6 +120,27 @@ void EnvmapSampleDirectionLighting(inout vec3 eval,
   }
 }
 
+float EstimateDirectLightingPdf() {
+  float pdf = 0.0;
+  if (ray_payload.t == -1.0) {
+    ivec2 envmap_size = EnvmapSize();
+    vec2 uv = SampleEnvmapUV(trace_ray_direction);
+    ivec2 uv_coord = ivec2(uv * envmap_size);
+    uv_coord.x = uv_coord.x % envmap_size.x;
+    uv_coord.y = uv_coord.y % envmap_size.y;
+    int idx = uv_coord.y * envmap_size.x + uv_coord.x;
+    float pixel_prob = envmap_cdf[idx];
+    float inv_height = 1.0 / float(envmap_size.y);
+    if (idx > 0) {
+      pixel_prob -= envmap_cdf[idx - 1];
+    }
+    float z_lbound = cos(uv_coord.y * inv_height * PI);
+    float z_ubound = cos((uv_coord.y + 1) * inv_height * PI);
+    pdf = pixel_prob * envmap_size.x / (0.5 * (z_lbound - z_ubound));
+  }
+  return pdf;
+}
+
 void SampleDirectLighting(out vec3 eval, out vec3 omega_in, out float pdf) {
   eval = vec3(0.0);
   omega_in = vec3(0.0);
@@ -158,6 +183,11 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
   for (int bounce = 0; bounce < scene_settings.num_bounces; bounce++) {
     TraceRay(origin, direction);
 
+    if (bounce != 0 && mis_scale >= 1e-5) {
+      float direct_lighting_pdf = EstimateDirectLightingPdf();
+      mis_scale *= PowerHeuristic(mis_scale, direct_lighting_pdf);
+    }
+
     if (ray_payload.t == -1.0) {
       radiance += mis_scale * throughput * EnvmapSample(direction);
       break;
@@ -176,8 +206,7 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
     if (pdf > 0.0) {
       float bsdf_pdf;
       vec3 bsdf_eval = EvalBSDF(omega_in, bsdf_pdf);
-      radiance +=
-          bsdf_eval * eval * throughput;  // * PowerHeuristic(pdf, bsdf_pdf);
+      radiance += bsdf_eval * eval * throughput * PowerHeuristic(pdf, bsdf_pdf);
     } else {
       return vec3(0.0);
     }
@@ -191,7 +220,7 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
     origin = hit_record.position;
     direction = omega_in;
 
-    mis_scale = 0.0;
+    mis_scale = pdf;
 
     float rrp =
         clamp(max(throughput.x, max(throughput.y, throughput.z)), 0.0, 1.0);
