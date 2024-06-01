@@ -17,7 +17,7 @@ struct HitRecord {
   uint albedo_texture_id;
   uint albedo_detail_texture_id;
   vec4 detail_scale_offset;
-};
+} hit_record;
 
 HitRecord ComposeHitRecord(RayPayload ray_payload,
                            vec3 origin,

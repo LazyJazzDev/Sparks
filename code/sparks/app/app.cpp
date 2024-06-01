@@ -85,11 +85,6 @@ void Application::OnClose() {
 }
 
 void Application::OnUpdate() {
-  if (reset_accumulated_buffer_) {
-    raytracing_film_->ClearAccumulationBuffer();
-    reset_accumulated_buffer_ = false;
-  }
-
   auto current_time = std::chrono::high_resolution_clock::now();
   static auto last_time = current_time;
   float delta_time = std::chrono::duration<float, std::chrono::seconds::period>(
@@ -106,15 +101,32 @@ void Application::OnUpdate() {
   gui_renderer_->UpdateGuiInfo(gui_info);
 
   scene_->Update(delta_time);
-  camera_controller_->Update(delta_time);
-
-  asset_manager_->Update(core_->CurrentFrame());
+  render_settings_changed_ |= camera_controller_->Update(delta_time);
 
   imgui_manager_->BeginFrame();
   ImGuizmo::BeginFrame();
   ImGui();
   //  asset_manager_->ImGui();
   imgui_manager_->EndFrame();
+
+  SceneSettings settings;
+  scene_->GetSceneSettings(settings);
+  if (render_settings_changed_) {
+    if (settings.persistence == 1.0f) {
+      reset_accumulated_buffer_ = true;
+    }
+    render_settings_changed_ = false;
+  }
+
+  if (reset_accumulated_buffer_) {
+    raytracing_film_->ClearAccumulationBuffer();
+    settings.accumulated_sample = 0;
+    reset_accumulated_buffer_ = false;
+  }
+  scene_->SetSceneSettings(settings);
+
+  asset_manager_->Update(core_->CurrentFrame());
+  scene_->UpdatePipelineObjects();
 
   core_->TransferCommandPool()->SingleTimeCommands(
       core_->TransferQueue(), [&](VkCommandBuffer cmd_buffer) {
@@ -520,6 +532,12 @@ ImVec2 Application::ImGuiSettingsWindow() {
 
   if (ImGui::CollapsingHeader("Scene Settings")) {
     scene_->GetSceneSettings(editing_scene_settings_);
+    render_settings_changed_ |= ImGui::SliderInt(
+        "Bounces",
+        reinterpret_cast<int *>(&editing_scene_settings_.num_bounces), 1, 128);
+    render_settings_changed_ |= ImGui::SliderInt(
+        "Samples", reinterpret_cast<int *>(&editing_scene_settings_.num_sample),
+        1, 128);
     render_settings_changed_ |= ImGui::SliderFloat(
         "Exposure", &editing_scene_settings_.exposure, 0.0f, 2.0f, "%.2f");
     render_settings_changed_ |= ImGui::SliderFloat(
@@ -674,6 +692,10 @@ ImVec2 Application::ImGuiStatisticWindow(ImVec2 window_pos) {
     ImGui::Text("Hovering Color: (%.2f, %.2f, %.2f)", hovering_color_.r,
                 hovering_color_.g, hovering_color_.b);
   }
+  SceneSettings scene_settings;
+  scene_->GetSceneSettings(scene_settings);
+  ImGui::Text("Accumulated Sample: %u", scene_settings.accumulated_sample);
+  scene_->SetSceneSettings(scene_settings);
   window_size = ImGui::GetWindowSize();
   ImGui::End();
   return window_size;

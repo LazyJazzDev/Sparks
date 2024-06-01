@@ -101,7 +101,9 @@ void Scene::Update(float delta_time) {
   if (update_callback_) {
     update_callback_(this, delta_time);
   }
+}
 
+void Scene::UpdatePipelineObjects() {
   envmap_->Update();
   UpdateDynamicBuffers();
   UpdateTopLevelAccelerationStructure();

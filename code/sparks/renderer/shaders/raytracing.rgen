@@ -1,6 +1,7 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_ray_query : enable
 
 #include "entity_metadata.glsl"
 #include "material.glsl"
@@ -36,6 +37,11 @@ layout(set = 2, binding = 3) uniform sampler samplers[];
 
 #define ENVMAP_SET 3
 #include "envmap.glsl"
+
+layout(set = ENVMAP_SET, binding = 2, std430) buffer EnvmapCdfData {
+  float envmap_cdf[];
+};
+
 #include "random.glsl"
 
 layout(set = 4, binding = 0, rgba8) uniform image2D result_image;
@@ -50,8 +56,74 @@ layout(set = 4, binding = 3, rgba32f) uniform image2D raw_result_image;
 
 layout(location = 0) rayPayloadEXT RayPayload ray_payload;
 
+#include "bsdf.glsl"
 #include "hit_record.glsl"
+#include "shadow_ray.glsl"
 #include "trace_ray.glsl"
+
+ivec2 EnvmapSize() {
+  return ivec2(textureSize(
+      sampler2D(sampled_textures[envmap_data.envmap_id], samplers[0]), 0));
+}
+
+vec3 EnvmapSample(vec3 direction) {
+  return texture(
+             sampler2D(sampled_textures[envmap_data.envmap_id], samplers[0]),
+             SampleEnvmapUV(direction))
+             .xyz *
+         envmap_data.scale;
+}
+
+void EnvmapSampleDirectionLighting(inout vec3 eval,
+                                   inout vec3 omega_in,
+                                   inout float pdf,
+                                   float r1) {
+  ivec2 envmap_size = EnvmapSize();
+  int L = 0, R = envmap_size.x * envmap_size.y - 1;
+  while (L < R) {
+    int mid = (L + R) / 2;
+    if (envmap_cdf[mid] < r1) {
+      L = mid + 1;
+    } else {
+      R = mid;
+    }
+  }
+  float pixel_prob = envmap_cdf[L];
+  if (L > 0) {
+    r1 -= envmap_cdf[L - 1];
+    pixel_prob -= envmap_cdf[L - 1];
+  }
+  r1 /= pixel_prob;
+  int y = L / envmap_size.x;
+  int x = L - y * envmap_size.x;
+  float inv_width = 1.0 / float(envmap_size.x);
+  float inv_height = 1.0 / float(envmap_size.y);
+  float z_lbound = cos(y * inv_height * PI);
+  float z_ubound = cos((y + 1) * inv_height * PI);
+  vec2 uv = vec2((x + r1) * inv_width,
+                 acos(mix(z_lbound, z_ubound, RandomFloat())) * INV_PI);
+  z_lbound = 0.5 * (1.0 - z_lbound);
+  z_ubound = 0.5 * (1.0 - z_ubound);
+  omega_in = SampleEnvmapDirection(uv);
+  float shadow = ShadowRay(hit_record.position, omega_in, 1e4);
+  if (shadow > 1e-4) {
+    vec3 color =
+        texture(sampler2D(sampled_textures[envmap_data.envmap_id], samplers[0]),
+                uv)
+            .xyz;
+    pdf = pixel_prob / ((z_ubound - z_lbound) * inv_width);
+    eval = shadow * color * 4 * PI / pdf;
+  }
+}
+
+void SampleDirectLighting(out vec3 eval, out vec3 omega_in, out float pdf) {
+  eval = vec3(0.0);
+  omega_in = vec3(0.0);
+  pdf = 0.0;
+
+  float r1 = RandomFloat();
+  EnvmapSampleDirectionLighting(eval, omega_in, pdf, r1);
+}
 
 vec4 SampleTextureLinear(uint texture_id, vec2 uv) {
   return texture(sampler2D(sampled_textures[texture_id], samplers[0]), uv);
@@ -81,77 +153,112 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
   vec3 radiance = vec3(0.0);
   vec3 throughput = vec3(1.0);
 
-  TraceRay(origin, direction);
+  float mis_scale = 1.0;
 
-  for (int bounce = 0; bounce < 1; bounce++) {
+  for (int bounce = 0; bounce < scene_settings.num_bounces; bounce++) {
+    TraceRay(origin, direction);
+
     if (ray_payload.t == -1.0) {
-      radiance += throughput *
-                  texture(sampler2D(sampled_textures[envmap_data.envmap_id],
-                                    samplers[0]),
-                          SampleEnvmapUV(direction))
-                      .xyz *
-                  envmap_data.scale;
+      radiance += mis_scale * throughput * EnvmapSample(direction);
       break;
     }
 
-    HitRecord hit_record = ComposeHitRecord(ray_payload, origin, direction);
-    Material material = GetMaterial(hit_record);
-    radiance += throughput * material.base_color;
+    hit_record = ComposeHitRecord(ray_payload, origin, direction);
+    material = GetMaterial(hit_record);
+
+    //    radiance += throughput * material.emission *
+    //    material.emission_strength;
+    vec3 eval;
+    vec3 omega_in;
+    float pdf;
+
+    SampleDirectLighting(eval, omega_in, pdf);
+    if (pdf > 0.0) {
+      float bsdf_pdf;
+      vec3 bsdf_eval = EvalBSDF(omega_in, bsdf_pdf);
+      radiance +=
+          bsdf_eval * eval * throughput;  // * PowerHeuristic(pdf, bsdf_pdf);
+    } else {
+      return vec3(0.0);
+    }
+
+    SampleBSDF(eval, omega_in, pdf);
+    if (pdf < 1e-5) {
+      break;
+    }
+
+    throughput *= eval / pdf;
+    origin = hit_record.position;
+    direction = omega_in;
+
+    mis_scale = 0.0;
+
+    float rrp =
+        clamp(max(throughput.x, max(throughput.y, throughput.z)), 0.0, 1.0);
+    if (RandomFloat() > rrp) {
+      break;
+    } else {
+      throughput /= rrp;
+    }
   }
 
   return radiance;
 }
 
 void main() {
-  InitRandomSeed(gl_LaunchIDEXT.x, gl_LaunchIDEXT.y, 0);
-  const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
-  const vec2 inUV = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
-  vec2 d = inUV * 2.0 - 1.0;
-  mat4 proj = scene_settings.projection;
-  proj[0][0] = 1.0 / proj[0][0];
-  proj[1][1] = 1.0 / proj[1][1];
+  for (uint i = 0; i < scene_settings.num_sample; i++) {
+    uint s = scene_settings.accumulated_sample + i;
+    InitRandomSeed(gl_LaunchIDEXT.x, gl_LaunchIDEXT.y, s);
+    const vec2 pixelCenter =
+        vec2(gl_LaunchIDEXT.xy) + vec2(RandomFloat(), RandomFloat());
+    const vec2 inUV = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
+    vec2 d = inUV * 2.0 - 1.0;
+    mat4 proj = scene_settings.projection;
+    proj[0][0] = 1.0 / proj[0][0];
+    proj[1][1] = 1.0 / proj[1][1];
 
-  vec4 origin = scene_settings.camera_to_world[3];  // * vec4(0, 0, 0, 1);
-  vec4 target = vec4(d.x, -d.y, 0, 1) * proj;
-  vec4 direction =
-      scene_settings.camera_to_world * vec4(normalize(target.xyz), 0);
+    vec4 origin = scene_settings.camera_to_world[3];  // * vec4(0, 0, 0, 1);
+    vec4 target = vec4(d.x, -d.y, 0, 1) * proj;
+    vec4 direction =
+        scene_settings.camera_to_world * vec4(normalize(target.xyz), 0);
 
-  float tmin = 0.001;
-  float tmax = 10000.0;
+    float tmin = 0.001;
+    float tmax = 10000.0;
 
-  ray_payload.t = -1.0;
-  vec3 sampled_result = SampleRay(origin.xyz, direction.xyz);
+    ray_payload.t = -1.0;
+    vec3 sampled_result = SampleRay(origin.xyz, direction.xyz);
 
-  vec4 accumulated_radiance = vec4(0.0);
-  float accumulated_weight = 0.0f;
-  accumulated_radiance =
-      imageLoad(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy));
-  accumulated_weight =
-      imageLoad(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy)).r;
+    vec4 accumulated_radiance = vec4(0.0);
+    float accumulated_weight = 0.0f;
+    accumulated_radiance =
+        imageLoad(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy));
+    accumulated_weight =
+        imageLoad(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy)).r;
 
-  accumulated_radiance *= scene_settings.persistence;
-  accumulated_weight *= scene_settings.persistence;
+    accumulated_radiance *= scene_settings.persistence;
+    accumulated_weight *= scene_settings.persistence;
 
-  if (isnan(accumulated_weight) || isnan(accumulated_radiance.r) ||
-      isnan(accumulated_radiance.g) || isnan(accumulated_radiance.b) ||
-      isnan(accumulated_radiance.a)) {
-    accumulated_weight = 0.0;
-    accumulated_radiance = vec4(0.0);
+    if (isnan(accumulated_weight) || isnan(accumulated_radiance.r) ||
+        isnan(accumulated_radiance.g) || isnan(accumulated_radiance.b) ||
+        isnan(accumulated_radiance.a)) {
+      accumulated_weight = 0.0;
+      accumulated_radiance = vec4(0.0);
+    }
+
+    accumulated_radiance += vec4(sampled_result, 1.0);
+    accumulated_weight += 1.0f;
+
+    vec4 raw_result = accumulated_radiance / accumulated_weight;
+
+    vec4 resolved_result = pow(scene_settings.exposure * raw_result,
+                               vec4(1.0 / scene_settings.gamma));
+
+    imageStore(result_image, ivec2(gl_LaunchIDEXT.xy),
+               vec4(resolved_result.rgb, 1.0));
+    imageStore(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy),
+               accumulated_radiance);
+    imageStore(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy),
+               vec4(accumulated_weight));
+    imageStore(raw_result_image, ivec2(gl_LaunchIDEXT.xy), raw_result);
   }
-
-  accumulated_radiance += vec4(sampled_result, 1.0);
-  accumulated_weight += 1.0f;
-
-  vec4 raw_result = accumulated_radiance / accumulated_weight;
-
-  vec4 resolved_result = pow(scene_settings.exposure * raw_result,
-                             vec4(1.0 / scene_settings.gamma));
-
-  imageStore(result_image, ivec2(gl_LaunchIDEXT.xy),
-             vec4(resolved_result.rgb, 1.0));
-  imageStore(accumulated_radiance_image, ivec2(gl_LaunchIDEXT.xy),
-             accumulated_radiance);
-  imageStore(accumulated_weight_image, ivec2(gl_LaunchIDEXT.xy),
-             vec4(accumulated_weight));
-  imageStore(raw_result_image, ivec2(gl_LaunchIDEXT.xy), raw_result);
 }

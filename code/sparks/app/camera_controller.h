@@ -6,7 +6,7 @@ namespace sparks {
 class CameraController {
  public:
   CameraController(vulkan::Core *core, Camera *camera);
-  void Update(float delta_time);
+  bool Update(float delta_time);
 
  private:
   vulkan::Core *core_;

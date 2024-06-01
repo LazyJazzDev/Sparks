@@ -9,6 +9,9 @@ struct SceneSettings {
   float gamma;
   float exposure;
   float persistence;
+  uint accumulated_sample;
+  uint num_sample;
+  uint num_bounces;
 };
 
 #endif

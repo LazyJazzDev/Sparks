@@ -167,7 +167,9 @@ void Renderer::CreateEnvmapPipeline() {
       {{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
         VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-        VK_SHADER_STAGE_FRAGMENT_BIT, &sampler}},
+        VK_SHADER_STAGE_FRAGMENT_BIT, &sampler},
+       {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+        nullptr}},
       &envmap_descriptor_set_layout_);
   core_->Device()->CreatePipelineLayout(
       {scene_descriptor_set_layout_->Handle(),
@@ -480,13 +482,15 @@ int Renderer::CreateRayTracingFilm(uint32_t width,
 
   Core()->Device()->CreateImage(
       VK_FORMAT_R32G32B32A32_SFLOAT, VkExtent2D{width, height},
-      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+          VK_IMAGE_USAGE_TRANSFER_DST_BIT,
       &film.accumulated_radiance_image);
 
-  Core()->Device()->CreateImage(
-      VK_FORMAT_R32_SFLOAT, VkExtent2D{width, height},
-      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      &film.accumulated_weight_image);
+  Core()->Device()->CreateImage(VK_FORMAT_R32_SFLOAT, VkExtent2D{width, height},
+                                VK_IMAGE_USAGE_STORAGE_BIT |
+                                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                &film.accumulated_weight_image);
 
   Core()->Device()->CreateImage(
       VK_FORMAT_R32G32B32A32_SFLOAT, VkExtent2D{width, height},
@@ -684,5 +688,10 @@ void Renderer::RenderSceneRayTracing(VkCommandBuffer cmd_buffer,
       &hit_shader_sbt_entry, &callable_shader_sbt_entry,
       film->result_image->Extent().width, film->result_image->Extent().height,
       1);
+
+  SceneSettings settings;
+  scene->GetSceneSettings(settings);
+  settings.accumulated_sample += settings.num_sample;
+  scene->SetSceneSettings(settings);
 }
 }  // namespace sparks

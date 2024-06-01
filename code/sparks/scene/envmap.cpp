@@ -40,6 +40,11 @@ void EnvMap::Update() {
                                         ->AssetManager()
                                         ->GetTexture(settings_.envmap_id)
                                         ->image_.get());
+  descriptor_sets_[scene_->Renderer()->Core()->CurrentFrame()]
+      ->BindStorageBuffer(2, scene_->Renderer()
+                                 ->AssetManager()
+                                 ->GetTexture(settings_.envmap_id)
+                                 ->cdf_buffer_->GetBuffer());
 }
 
 void EnvMap::Sync(VkCommandBuffer cmd_buffer, int frame_id) {

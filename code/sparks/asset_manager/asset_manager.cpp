@@ -101,6 +101,24 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
                       texture_asset.image_.get(), texture.Data(),
                       texture.Width() * texture.Height() * sizeof(glm::vec4));
 
+  std::vector<float> pixel_cdf(texture.Width() * texture.Height());
+  float accumulated_weight = 0.0;
+  for (uint32_t y = 0; y < texture.Height(); y++) {
+    for (uint32_t x = 0; x < texture.Width(); x++) {
+      uint32_t index = y * texture.Width() + x;
+      glm::vec3 pixel{texture(x, y)};
+      accumulated_weight += std::max(pixel.x, std::max(pixel.y, pixel.z));
+      pixel_cdf[index] = accumulated_weight;
+    }
+  }
+  for (auto &weight : pixel_cdf) {
+    weight /= accumulated_weight;
+  }
+  core_->CreateStaticBuffer<float>(pixel_cdf.size(),
+                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                   &texture_asset.cdf_buffer_);
+  texture_asset.cdf_buffer_->UploadContents(pixel_cdf.data(), pixel_cdf.size());
+
   uint32_t binding_texture_id = textures_.size();
 
   textures_[next_texture_id_] = {

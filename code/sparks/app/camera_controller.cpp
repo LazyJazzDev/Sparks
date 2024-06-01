@@ -12,7 +12,8 @@ CameraController::CameraController(vulkan::Core *core, Camera *camera)
   last_y = ypos;
 }
 
-void CameraController::Update(float delta_time) {
+bool CameraController::Update(float delta_time) {
+  bool result{false};
   auto camera_to_world = camera_->GetInverseView();
   GLFWwindow *window = core_->Surface()->Window();
   glm::vec3 x_axis{camera_to_world[0]};
@@ -37,29 +38,37 @@ void CameraController::Update(float delta_time) {
                                 glm::half_pi<float>());
     euler_angles.y = glm::mod(euler_angles.y, glm::two_pi<float>());
     camera_->SetEulerAngles(euler_angles);
+    result = true;
   }
 
   glm::vec3 move_dir{0.0f};
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
     move_dir -= z_axis;
+    result = true;
   }
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     move_dir += z_axis;
+    result = true;
   }
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
     move_dir -= x_axis;
+    result = true;
   }
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
     move_dir += x_axis;
+    result = true;
   }
   if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
     move_dir -= y_axis;
+    result = true;
   }
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
     move_dir += y_axis;
+    result = true;
   }
 
   camera_->SetPosition(camera_->GetPosition() + move_dir * 0.1f * delta_time);
+  return result;
 }
 
 }  // namespace sparks

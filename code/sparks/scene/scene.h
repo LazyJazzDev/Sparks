@@ -52,6 +52,8 @@ class Scene {
 
   void Update(float delta_time);
 
+  void UpdatePipelineObjects();
+
   void SyncData(VkCommandBuffer cmd_buffer, int frame_id);
 
   void DrawEnvmap(VkCommandBuffer cmd_buffer, int frame_id);

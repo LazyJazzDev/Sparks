@@ -24,4 +24,15 @@ vec2 SampleEnvmapUV(vec3 direction) {
   return direction.xy;
 }
 
+vec3 SampleEnvmapDirection(vec2 uv) {
+  uv = mod(uv, 1.0);
+  uv.x -= envmap_data.offset;
+  vec3 direction;
+  direction.y = cos(uv.y * PI);
+  float r = sin(uv.y * PI);
+  direction.x = -r * sin(uv.x * 2.0 * PI);
+  direction.z = r * cos(uv.x * 2.0 * PI);
+  return direction;
+}
+
 #endif

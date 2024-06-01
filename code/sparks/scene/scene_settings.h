@@ -11,7 +11,10 @@ struct SceneSettings {
   float gamma{2.2f};
   float exposure{1.0f};
   float persistence{0.9f};
-  float padding[13];
+  uint32_t accumulated_sample{0};
+  uint32_t num_sample{10};
+  uint32_t num_bounces{32};
+  float padding[10];
 };  // need align to 64(0x40) byte
 
 }  // namespace sparks
