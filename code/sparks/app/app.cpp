@@ -345,6 +345,7 @@ void Application::LoadScene() {
   terrain_mesh.LoadFromHeightMap(heightmap_texture, 1.0f, 0.2f, 0.0f);
   auto terrain_mesh_id = asset_manager->LoadMesh(terrain_mesh, "TerrainMesh");
   Material terrain_material;
+  terrain_material.sheen = 1.0f;
   scene_->SetEntityMesh(entity_id, terrain_mesh_id);
   scene_->SetEntityMaterial(entity_id, terrain_material);
   scene_->SetEntityTransform(
@@ -392,8 +393,10 @@ void Application::LoadScene() {
       asset_manager->LoadTexture(water_texture, "WaterTexture");
   int water_entity_id = scene_->CreateEntity();
   Material water_material;
-  water_material.color = {1.5f, 1.5f, 1.5f};
-  water_material.alpha = 0.5f;
+  water_material.base_color = {1.0f, 1.0f, 1.0f};
+  water_material.metallic = 0.1f;
+  water_material.specular = 1.0f;
+  water_material.alpha = 1.0f;
   scene_->SetEntityAlbedoDetailTexture(water_entity_id, water_texture_id);
   scene_->SetEntityMesh(water_entity_id, plane_mesh_id);
   scene_->SetEntityMaterial(water_entity_id, water_material);
@@ -569,7 +572,15 @@ ImVec2 Application::ImGuiSettingsWindow() {
       scene_->GetEntityMetadata(selected_instances_[0], metadata);
       render_settings_changed_ |=
           asset_manager_->ComboForMeshSelection("Mesh", &metadata.mesh_id);
-      render_settings_changed_ |= ImGui::ColorEdit3("Color", &material.color.r);
+
+      const char *material_type_names[] = {"Lambertian", "Specular",
+                                           "Principled"};
+      render_settings_changed_ |=
+          ImGui::Combo("Material Type", reinterpret_cast<int *>(&material.type),
+                       material_type_names, 3);
+
+      render_settings_changed_ |=
+          ImGui::ColorEdit3("Base Color", &material.base_color.r);
       render_settings_changed_ |= asset_manager_->ComboForTextureSelection(
           "Base Color Texture", &metadata.albedo_texture_id);
       render_settings_changed_ |= asset_manager_->ComboForTextureSelection(
@@ -579,6 +590,49 @@ ImVec2 Application::ImGuiSettingsWindow() {
           "%.4f", ImGuiSliderFlags_Logarithmic);
       render_settings_changed_ |= ImGui::SliderFloat2(
           "Detail Offset", &metadata.detail_scale_offset.z, 0.0f, 1.0f, "%.4f");
+
+      if (material.type == 2) {
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Metallic", &material.metallic, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Roughness", &material.roughness, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Specular", &material.specular, 0.0f, 1.0f);
+        render_settings_changed_ |= ImGui::SliderFloat(
+            "Specular Tint", &material.specular_tint, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Subsurface", &material.subsurface, 0.0f, 1.0f);
+        render_settings_changed_ |= ImGui::SliderFloat3(
+            "Subsurface Radius", &material.subsurface_radius.x, 0.0f, 10.0f);
+        render_settings_changed_ |=
+            ImGui::ColorEdit3("Subsurface Color", &material.subsurface_color.r);
+        render_settings_changed_ |= ImGui::SliderFloat(
+            "Anisotropic", &material.anisotropic, 0.0f, 1.0f);
+        render_settings_changed_ |= ImGui::SliderFloat(
+            "Anisotropic Rotation", &material.anisotropic_rotation, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Sheen", &material.sheen, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Sheen Tint", &material.sheen_tint, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Clearcoat", &material.clearcoat, 0.0f, 1.0f);
+        render_settings_changed_ |= ImGui::SliderFloat(
+            "Clearcoat Roughness", &material.clearcoat_roughness, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("IOR", &material.ior, 0.1f, 10.0f, "%.2f",
+                               ImGuiSliderFlags_Logarithmic);
+        render_settings_changed_ |= ImGui::SliderFloat(
+            "Transmission", &material.transmission, 0.0f, 1.0f);
+        render_settings_changed_ |=
+            ImGui::SliderFloat("Transmission Roughness",
+                               &material.transmission_roughness, 0.0f, 1.0f);
+      }
+
+      render_settings_changed_ |=
+          ImGui::ColorEdit3("Emission", &material.emission.r);
+      render_settings_changed_ |= ImGui::SliderFloat(
+          "Emission Strength", &material.emission_strength, 0.0f, 10.0f);
+
       render_settings_changed_ |=
           ImGui::SliderFloat("Alpha", &material.alpha, 0.0f, 1.0f);
 

@@ -1,6 +1,7 @@
 #ifndef HIT_RECORD_GLSL
 #define HIT_RECORD_GLSL
 
+#include "entity_metadata.glsl"
 #include "vertex.glsl"
 
 struct HitRecord {
@@ -30,7 +31,7 @@ HitRecord ComposeHitRecord(RayPayload ray_payload,
   hit_record.tangent = vec3(0.0);
   hit_record.bitangent = vec3(0.0);
   hit_record.tex_coord = vec2(0.0);
-  hit_record.omega_v = vec3(0.0);
+  hit_record.omega_v = -direction;
   hit_record.front_face = true;
   hit_record.albedo_texture_id = 0;
   hit_record.albedo_detail_texture_id = 0;
