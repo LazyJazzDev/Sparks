@@ -195,7 +195,9 @@ void Application::OnRender() {
       VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT);
 
-  gui_renderer_->Render(cmd_buffer);
+  if (show_auxiliary_visual_components_) {
+    gui_renderer_->Render(cmd_buffer);
+  }
 
   vulkan::TransitImageLayout(
       cmd_buffer, film_->stencil_image->Handle(), VK_IMAGE_LAYOUT_GENERAL,
@@ -423,10 +425,12 @@ void Application::LoadScene() {
 }
 
 void Application::ImGui() {
-  ImGuiSettingsWindow();
-  ImVec2 window_size = ImGuizmoWindow();
-  window_size =
-      ImGuiStatisticWindow(ImVec2(ImGui::GetIO().DisplaySize.x, window_size.y));
+  if (show_auxiliary_visual_components_) {
+    ImGuiSettingsWindow();
+    ImVec2 window_size = ImGuizmoWindow();
+    window_size = ImGuiStatisticWindow(
+        ImVec2(ImGui::GetIO().DisplaySize.x, window_size.y));
+  }
 }
 
 void Application::CaptureMouseRelatedData() {
@@ -493,6 +497,12 @@ void Application::RegisterInteractions() {
     pre_selected_instances[0] = 0xfffffffeu;
     pre_selected_instances[1] = 0xfffffffeu;
   });
+  core_->KeyEvent().RegisterCallback([this](int key, int scancode, int action,
+                                            int mods) {
+    if (key == GLFW_KEY_G && action == GLFW_PRESS) {
+      show_auxiliary_visual_components_ = !show_auxiliary_visual_components_;
+    }
+  });
 }
 
 ImVec2 Application::ImGuiSettingsWindow() {
@@ -548,6 +558,9 @@ ImVec2 Application::ImGuiSettingsWindow() {
     render_settings_changed_ |=
         ImGui::SliderFloat("Persistence", &editing_scene_settings_.persistence,
                            0.0f, 1.0f, "%.2f");
+    render_settings_changed_ |=
+        ImGui::SliderFloat("Clamp", &editing_scene_settings_.clamp_value, 1.0f,
+                           10000.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
     scene_->SetSceneSettings(editing_scene_settings_);
   }
   if (ImGui::CollapsingHeader("Environment Map Settings")) {

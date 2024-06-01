@@ -4,6 +4,8 @@
 #include "envmap.glsl"
 #include "hit_record.glsl"
 #include "random.glsl"
+#include "shadow_ray.glsl"
+#include "trace_ray.glsl"
 
 float PowerHeuristic(float base, float ref) {
   return (base * base) / (base * base + ref * ref);

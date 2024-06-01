@@ -167,6 +167,9 @@ void main() {
     ray_payload.t = -1.0;
     vec3 sampled_result = SampleRay(origin.xyz, direction.xyz);
 
+    sampled_result = clamp(sampled_result, -scene_settings.clamp_value,
+                           scene_settings.clamp_value);
+
     vec4 accumulated_radiance = vec4(0.0);
     float accumulated_weight = 0.0f;
     accumulated_radiance =

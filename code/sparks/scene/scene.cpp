@@ -98,7 +98,7 @@ int Scene::CreateEntity(Entity **pp_entity) {
 }
 
 void Scene::Update(float delta_time) {
-  if (update_callback_) {
+  if (update_callback_ && scene_settings_.persistence != 1.0f) {
     update_callback_(this, delta_time);
   }
 }

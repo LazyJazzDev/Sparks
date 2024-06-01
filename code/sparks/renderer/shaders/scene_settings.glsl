@@ -12,6 +12,7 @@ struct SceneSettings {
   uint accumulated_sample;
   uint num_sample;
   uint num_bounces;
+  float clamp_value;
 };
 
 #endif

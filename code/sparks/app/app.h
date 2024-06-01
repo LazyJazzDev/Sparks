@@ -85,6 +85,7 @@ class Application {
   SceneSettings editing_scene_settings_;
   EnvMapSettings editing_envmap_settings_;
   bool render_settings_changed_{false};
+  bool show_auxiliary_visual_components_{true};
 };
 
 }  // namespace sparks
