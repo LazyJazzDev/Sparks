@@ -5,3 +5,6 @@ cmake-build-*/
 
 *.exe
 *.dll
+
+out/
+.vs/
