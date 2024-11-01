@@ -139,10 +139,9 @@ void Scene::UpdateDynamicBuffers() {
 
     auto material = entity->GetMaterial();
     float energy_density = 0.0f;
-    if (material.type == MATERIAL_TYPE_PRINCIPLED) {
-      glm::vec3 emission = material.emission * material.emission_strength;
-      energy_density = std::max(emission.r, std::max(emission.g, emission.b));
-    }
+
+    glm::vec3 emission = material.emission * material.emission_strength;
+    energy_density = std::max(emission.r, std::max(emission.g, emission.b));
 
     if (energy_density > 0.0) {
       auto mesh = renderer_->AssetManager()->GetMesh(entity->MeshId());
@@ -170,10 +169,8 @@ void Scene::UpdateDynamicBuffers() {
       float stretched_area = singular_value_0 * singular_value_1 * mesh->area_;
       energy = stretched_area * energy_density;
     }
-
-    entity->SetEmissionCDF(total_energy);
-
     total_energy += energy;
+    entity->SetEmissionCDF(total_energy);
   }
   scene_settings_.total_emission_energy = total_energy;
 

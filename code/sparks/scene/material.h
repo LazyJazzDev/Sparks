@@ -38,6 +38,8 @@ struct Material {
 
   glm::vec3 normal{0.5f, 0.5f, 1.0f};
   uint32_t type{0};
+
+  // This structure needs to be padded to 16 bytes
 };
 // clang-format on
 

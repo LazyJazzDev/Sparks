@@ -144,16 +144,15 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
   auto &indices = mesh.Indices();
 
   float area = 0.0;
-  std::vector<float> area_cdf(indices.size() / 3 + 1);
+  std::vector<float> area_cdf(indices.size() / 3);
   for (int i = 0; i < indices.size() / 3; i++) {
-    area_cdf[i] = area;
     area += glm::length(glm::cross(vertices[indices[i * 3 + 1]].position -
                                        vertices[indices[i * 3]].position,
                                    vertices[indices[i * 3 + 2]].position -
                                        vertices[indices[i * 3]].position)) *
             0.5;
+    area_cdf[i] = area;
   }
-  area_cdf[indices.size() / 3] = area;
   for (auto &weight : area_cdf) {
     weight /= area;
   }

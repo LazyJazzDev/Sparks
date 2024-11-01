@@ -453,6 +453,10 @@ ImVec2 Application::ImGuiSettingsWindow() {
     render_settings_changed_ |=
         ImGui::SliderFloat("Clamp", &editing_scene_settings_.clamp_value, 1.0f,
                            10000.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+    render_settings_changed_ |=
+        ImGui::Checkbox("Direct Lighting",
+                        reinterpret_cast<bool *>(
+                            &editing_scene_settings_.enable_direct_lighting));
     scene_->SetSceneSettings(editing_scene_settings_);
   }
   if (ImGui::CollapsingHeader("Environment Map Settings")) {
@@ -536,7 +540,7 @@ ImVec2 Application::ImGuiSettingsWindow() {
       render_settings_changed_ |=
           ImGui::ColorEdit3("Emission", &material.emission.r);
       render_settings_changed_ |= ImGui::SliderFloat(
-          "Emission Strength", &material.emission_strength, 0.0f, 10.0f);
+          "Emission Strength", &material.emission_strength, 0.0f, 100.0f);
 
       render_settings_changed_ |=
           ImGui::SliderFloat("Alpha", &material.alpha, 0.0f, 1.0f);

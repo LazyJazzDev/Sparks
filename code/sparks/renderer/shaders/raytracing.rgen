@@ -38,7 +38,7 @@ index_buffers[];
 layout(set = 2, binding = 2) buffer AreaCDFBuffers {
   float area_cdfs[];
 }
-cdf_buffers[];
+mesh_cdf_buffers[];
 
 layout(set = 2, binding = 3, std430) buffer MeshMetadataBuffers {
   MeshMetadata mesh_metadatas[];
@@ -70,6 +70,7 @@ layout(set = 4, binding = 3, rgba32f) uniform image2D raw_result_image;
 layout(location = 0) rayPayloadEXT RayPayload ray_payload;
 
 #include "bsdf.glsl"
+#include "entity_direct_lighting.glsl"
 #include "envmap_direct_lighting.glsl"
 #include "hit_record.glsl"
 #include "shadow_ray.glsl"
@@ -104,33 +105,54 @@ vec3 SampleRay(vec3 origin, vec3 direction) {
   vec3 throughput = vec3(1.0);
 
   float mis_scale = 1.0;
+  float envmap_mis_scale = 1.0;
+  float entity_mis_scale = 1.0;
 
   for (int bounce = 0; bounce < scene_settings.num_bounces; bounce++) {
     TraceRay(origin, direction);
 
-    if (bounce != 0 && mis_scale >= 1e-5) {
+    if (scene_settings.enable_direct_lighting && bounce != 0 &&
+        mis_scale >= 1e-5) {
       float direct_lighting_pdf = EstimateEnvmapDirectLightingPdf();
-      mis_scale = PowerHeuristic(mis_scale, direct_lighting_pdf);
+      envmap_mis_scale = PowerHeuristic(mis_scale, direct_lighting_pdf);
     }
 
     if (ray_payload.t == -1.0) {
-      radiance += mis_scale * throughput * EnvmapSample(direction);
+      radiance += envmap_mis_scale * throughput * EnvmapSample(direction);
       break;
     }
 
     hit_record = ComposeHitRecord(ray_payload, origin, direction);
     material = GetMaterial(hit_record);
 
-    radiance += throughput * material.emission * material.emission_strength;
+    if (scene_settings.enable_direct_lighting && bounce != 0 &&
+        mis_scale >= 1e-5) {
+      float direct_lighting_pdf = EstimateEntityDirectLightingPdf(origin);
+      entity_mis_scale = PowerHeuristic(mis_scale, direct_lighting_pdf);
+    }
+
+    radiance += throughput * material.emission * material.emission_strength *
+                entity_mis_scale;
     vec3 eval;
     vec3 omega_in;
     float pdf;
 
-    SampleEnvmapDirectLighting(eval, omega_in, pdf);
-    if (pdf > 0.0) {
-      float bsdf_pdf;
-      vec3 bsdf_eval = EvalBSDF(omega_in, bsdf_pdf);
-      radiance += bsdf_eval * eval * throughput * PowerHeuristic(pdf, bsdf_pdf);
+    if (scene_settings.enable_direct_lighting) {
+      SampleEnvmapDirectLighting(eval, omega_in, pdf);
+      if (pdf > 0.0) {
+        float bsdf_pdf;
+        vec3 bsdf_eval = EvalBSDF(omega_in, bsdf_pdf);
+        radiance +=
+            bsdf_eval * eval * throughput * PowerHeuristic(pdf, bsdf_pdf);
+      }
+
+      SampleEntityDirectLighting(eval, omega_in, pdf);
+      if (pdf > 0.0) {
+        float bsdf_pdf;
+        vec3 bsdf_eval = EvalBSDF(omega_in, bsdf_pdf);
+        radiance +=
+            bsdf_eval * eval * throughput * PowerHeuristic(pdf, bsdf_pdf);
+      }
     }
 
     SampleBSDF(eval, omega_in, pdf);

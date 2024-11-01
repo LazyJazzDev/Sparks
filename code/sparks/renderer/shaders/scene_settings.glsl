@@ -15,6 +15,7 @@ struct SceneSettings {
   float clamp_value;
   float total_emission_energy;
   uint num_entity;
+  bool enable_direct_lighting;
 };
 
 #endif

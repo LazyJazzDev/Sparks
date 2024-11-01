@@ -17,7 +17,8 @@ struct SceneSettings {
   float clamp_value{100.0f};
   float total_emission_energy{0.0f};
   uint32_t num_entity{0};
-  float padding[7];
+  uint32_t enable_direct_lighting{1};
+  float padding[6];
 };  // need align to 64(0x40) byte
 
 }  // namespace sparks
