@@ -42,14 +42,21 @@ void AssetManager::CreateDescriptorObjects() {
       VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK, VK_SAMPLER_MIPMAP_MODE_NEAREST,
       &nearest_sampler_);
 
+  mesh_metadata_buffer_ = std::make_unique<vulkan::DynamicBuffer<MeshMetadata>>(
+      core_, max_meshes_, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   core_->Device()->CreateDescriptorSetLayout(
       {{0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, max_meshes_,
         VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
        {1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, max_meshes_,
         VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
-       {2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, max_textures_,
+       {2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, max_meshes_,
         VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
-       {3, VK_DESCRIPTOR_TYPE_SAMPLER, 2, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+       {3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+        nullptr},
+       {4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, max_textures_,
+        VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr},
+       {5, VK_DESCRIPTOR_TYPE_SAMPLER, 2, VK_SHADER_STAGE_RAYGEN_BIT_KHR,
         nullptr}},
       &descriptor_set_layout_);
 
@@ -69,8 +76,10 @@ void AssetManager::CreateDescriptorObjects() {
 
   for (size_t frame_id = 0; frame_id < core_->MaxFramesInFlight(); frame_id++) {
     auto &descriptor_set = descriptor_sets_[frame_id];
+    descriptor_set->BindStorageBuffer(
+        3, mesh_metadata_buffer_->GetBuffer(frame_id));
     descriptor_set->BindSamplers(
-        3, {linear_sampler_->Handle(), nearest_sampler_->Handle()});
+        5, {linear_sampler_->Handle(), nearest_sampler_->Handle()});
   }
 
   last_frame_bound_mesh_num_ =
@@ -97,11 +106,12 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
     return -1;
   }
 
-  vulkan::UploadImage(core_->GraphicsQueue(), core_->GraphicsCommandPool(),
-                      texture_asset.image_.get(), texture.Data(),
-                      texture.Width() * texture.Height() * sizeof(glm::vec4));
+  UploadImage(core_->GraphicsQueue(), core_->GraphicsCommandPool(),
+              texture_asset.image_.get(), texture.Data(),
+              texture.Width() * texture.Height() * sizeof(glm::vec4));
 
   std::vector<float> pixel_cdf(texture.Width() * texture.Height());
+
   float accumulated_weight = 0.0;
   for (uint32_t y = 0; y < texture.Height(); y++) {
     for (uint32_t x = 0; x < texture.Width(); x++) {
@@ -111,6 +121,7 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
       pixel_cdf[index] = accumulated_weight;
     }
   }
+
   for (auto &weight : pixel_cdf) {
     weight /= accumulated_weight;
   }
@@ -129,6 +140,23 @@ int AssetManager::LoadTexture(const Texture &texture, std::string name) {
 }
 
 int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
+  auto &vertices = mesh.Vertices();
+  auto &indices = mesh.Indices();
+
+  float area = 0.0;
+  std::vector<float> area_cdf(indices.size() / 3);
+  for (int i = 0; i < indices.size() / 3; i++) {
+    area += glm::length(glm::cross(vertices[indices[i * 3 + 1]].position -
+                                       vertices[indices[i * 3]].position,
+                                   vertices[indices[i * 3 + 2]].position -
+                                       vertices[indices[i * 3]].position)) *
+            0.5;
+    area_cdf[i] = area;
+  }
+  for (auto &weight : area_cdf) {
+    weight /= area;
+  }
+
   MeshAsset mesh_asset;
   mesh_asset.name_ = std::move(name);
   if (core_->CreateStaticBuffer<Vertex>(
@@ -151,10 +179,18 @@ int AssetManager::LoadMesh(const Mesh &mesh, std::string name) {
     return -1;
   }
 
+  if (core_->CreateStaticBuffer<float>(
+          area_cdf.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+          &mesh_asset.area_cdf_buffer_) != VK_SUCCESS) {
+    return -1;
+  }
+
   mesh_asset.vertex_buffer_->UploadContents(mesh.Vertices().data(),
                                             mesh.Vertices().size());
   mesh_asset.index_buffer_->UploadContents(mesh.Indices().data(),
                                            mesh.Indices().size());
+  mesh_asset.area_cdf_buffer_->UploadContents(area_cdf.data(), area_cdf.size());
+  mesh_asset.area_ = area;
 
   if (core_->CreateBottomLevelAccelerationStructure(
           mesh_asset.vertex_buffer_->GetBuffer(),
@@ -240,25 +276,37 @@ void AssetManager::UpdateMeshDataBindings(uint32_t frame_id) {
 
   std::vector<const vulkan::Buffer *> vertex_buffers;
   std::vector<const vulkan::Buffer *> index_buffers;
+  std::vector<const vulkan::Buffer *> area_cdf_buffers;
   for (auto mesh_id : GetMeshIds()) {
     auto mesh = GetMesh(mesh_id);
     vertex_buffers.push_back(mesh->vertex_buffer_->GetBuffer(frame_id));
     index_buffers.push_back(mesh->index_buffer_->GetBuffer(frame_id));
+    area_cdf_buffers.push_back(mesh->area_cdf_buffer_->GetBuffer(frame_id));
   }
 
   uint32_t last_frame_bound_mesh_num = last_frame_bound_mesh_num_[frame_id];
   last_frame_bound_mesh_num_[frame_id] = vertex_buffers.size();
   if (last_frame_bound_mesh_num != vertex_buffers.size()) {
     while (vertex_buffers.size() < last_frame_bound_mesh_num ||
-           index_buffers.size() < last_frame_bound_mesh_num) {
+           index_buffers.size() < last_frame_bound_mesh_num ||
+           area_cdf_buffers.size() < last_frame_bound_mesh_num) {
       auto mesh = GetMesh(0);
       vertex_buffers.push_back(mesh->vertex_buffer_->GetBuffer(frame_id));
       index_buffers.push_back(mesh->index_buffer_->GetBuffer(frame_id));
+      area_cdf_buffers.push_back(mesh->area_cdf_buffer_->GetBuffer(frame_id));
     }
   }
 
   descriptor_set->BindStorageBuffers(0, vertex_buffers);
   descriptor_set->BindStorageBuffers(1, index_buffers);
+  descriptor_set->BindStorageBuffers(2, area_cdf_buffers);
+
+  for (int i = 0; i < vertex_buffers.size(); i++) {
+    MeshMetadata metadata;
+    metadata.num_vertex = GetMesh(i)->vertex_buffer_->Length();
+    metadata.num_index = GetMesh(i)->index_buffer_->Length();
+    mesh_metadata_buffer_->At(i) = metadata;
+  }
 }
 
 void AssetManager::UpdateTextureBindings(uint32_t frame_id) {
@@ -279,7 +327,7 @@ void AssetManager::UpdateTextureBindings(uint32_t frame_id) {
   }
 
   auto &descriptor_set = descriptor_sets_[frame_id];
-  descriptor_set->BindSampledImages(2, images);
+  descriptor_set->BindSampledImages(4, images);
 }
 
 void AssetManager::Update(uint32_t frame_id) {
@@ -325,6 +373,10 @@ bool AssetManager::ComboForMeshSelection(const char *label, uint32_t *id) {
     *id = item_ids[current_selection];
   }
   return result;
+}
+
+void AssetManager::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
+  mesh_metadata_buffer_->SyncData(cmd_buffer, frame_id);
 }
 
 }  // namespace sparks

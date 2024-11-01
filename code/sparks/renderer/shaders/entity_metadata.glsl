@@ -8,6 +8,10 @@ struct EntityMetadata {
   uint albedo_texture_id;
   uint albedo_detail_texture_id;
   vec4 detail_scale_offset;
+  float emission_cdf;
+  float padding0;
+  float padding1;
+  float padding2;
 };
 
 #endif

@@ -57,11 +57,20 @@ class Camera {
     far_ = farf;
   }
 
+  float GetCameraSpeed() const {
+    return speed_;
+  }
+
+  void SetCameraSpeed(float speed) {
+    speed_ = speed;
+  }
+
  private:
   glm::vec3 euler_angles_{0.0f, 0.0f, 0.0f};
   glm::vec3 position_{0.0f, 0.0f, 0.0f};
   float fov_{glm::radians(45.0f)};
   float near_{0.1f};
   float far_{1000.0f};
+  float speed_{0.1f};
 };
 }  // namespace sparks

@@ -1,5 +1,5 @@
-#ifndef DIRECT_LIGHTING_GLSL
-#define DIRECT_LIGHTING_GLSL
+#ifndef ENVMAP_DIRECT_LIGHTING_GLSL
+#define ENVMAP_DIRECT_LIGHTING_GLSL
 
 #include "envmap.glsl"
 #include "hit_record.glsl"
@@ -63,7 +63,7 @@ void EnvmapSampleDirectionLighting(inout vec3 eval,
   }
 }
 
-float EstimateDirectLightingPdf() {
+float EstimateEnvmapDirectLightingPdf() {
   float pdf = 0.0;
   if (ray_payload.t == -1.0) {
     ivec2 envmap_size = EnvmapSize();
@@ -84,7 +84,9 @@ float EstimateDirectLightingPdf() {
   return pdf;
 }
 
-void SampleDirectLighting(out vec3 eval, out vec3 omega_in, out float pdf) {
+void SampleEnvmapDirectLighting(out vec3 eval,
+                                out vec3 omega_in,
+                                out float pdf) {
   eval = vec3(0.0);
   omega_in = vec3(0.0);
   pdf = 0.0;

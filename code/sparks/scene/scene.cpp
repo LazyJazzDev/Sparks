@@ -1,5 +1,6 @@
 #include "sparks/scene/scene.h"
 
+#include "Eigen/Eigen"
 #include "sparks/renderer/renderer.h"
 
 namespace sparks {
@@ -20,6 +21,9 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
   pool_size =
       pool_size + renderer_->RayTracingDescriptorSetLayout()->GetPoolSize() *
                       renderer_->Core()->MaxFramesInFlight();
+
+  LogInfo("Max sets: {}",
+          renderer_->Core()->MaxFramesInFlight() * (max_entities + 4));
 
   renderer_->Core()->Device()->CreateDescriptorPool(
       pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 4),
@@ -124,6 +128,66 @@ void Scene::UpdateDynamicBuffers() {
   Renderer()->AssetManager()->GetMeshIds();
   Renderer()->AssetManager()->GetTextureIds();
 
+  for (auto &entity : entities_) {
+    entity.second->Update();
+  }
+
+  float total_energy = 0.0f;
+
+  for (auto &[id, entity] : entities_) {
+    float energy = 0.0f;
+
+    auto material = entity->GetMaterial();
+    float energy_density = 0.0f;
+
+    glm::vec3 emission = material.emission * material.emission_strength;
+    energy_density = std::max(emission.r, std::max(emission.g, emission.b));
+
+    if (energy_density > 0.0) {
+      auto mesh = renderer_->AssetManager()->GetMesh(entity->MeshId());
+      auto transform = glm::mat3(entity->GetTransform());
+
+      Eigen::Matrix3<float> svd_transform;
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          svd_transform(i, j) = transform[i][j];
+        }
+      }
+
+      Eigen::JacobiSVD<Eigen::Matrix3<float>> svd(
+          svd_transform, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+      Eigen::Vector3<float> singular_values = svd.singularValues();
+      singular_values = singular_values.cwiseAbs().derived();
+
+      std::sort(singular_values.data(),
+                singular_values.data() + singular_values.size());
+
+      float singular_value_0 = singular_values[2];
+      float singular_value_1 = singular_values[1];
+
+      float stretched_area = singular_value_0 * singular_value_1 * mesh->area_;
+      energy = stretched_area * energy_density;
+    }
+    total_energy += energy;
+    entity->SetEmissionCDF(total_energy);
+  }
+  scene_settings_.total_emission_energy = total_energy;
+
+  uint32_t binding_entity_id = 0;
+  for (auto &[id, entity] : entities_) {
+    if (total_energy > 0.0) {
+      entity->SetEmissionCDF(entity->GetEmissionCDF() / total_energy);
+    } else {
+      entity->SetEmissionCDF(0.0);
+    }
+    entity_metadata_buffer_->At(binding_entity_id) =
+        entity->GetTranslatedMetadata();
+    entity_material_buffer_->At(binding_entity_id) = entity->GetMaterial();
+    binding_entity_id++;
+  }
+  scene_settings_.num_entity = entities_.size();
+
   VkExtent2D extent = renderer_->Core()->Swapchain()->Extent();
   SceneSettings scene_settings = scene_settings_;
   scene_settings.view = camera_.GetView();
@@ -136,18 +200,6 @@ void Scene::UpdateDynamicBuffers() {
       static_cast<float>(extent.width) / static_cast<float>(extent.height));
   scene_settings.inv_projection = glm::inverse(scene_settings.projection);
   scene_settings_buffer_->At(1) = scene_settings;
-
-  for (auto &entity : entities_) {
-    entity.second->Update();
-  }
-
-  uint32_t binding_entity_id = 0;
-  for (auto &[id, entity] : entities_) {
-    entity_metadata_buffer_->At(binding_entity_id) =
-        entity->GetTranslatedMetadata();
-    entity_material_buffer_->At(binding_entity_id) = entity->GetMaterial();
-    binding_entity_id++;
-  }
 }
 
 void Scene::UpdateTopLevelAccelerationStructure() {

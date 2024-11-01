@@ -89,13 +89,11 @@ class Renderer {
                            uint32_t height,
                            double_ptr<RayTracingFilm> pp_film);
 
-  void RenderScene(VkCommandBuffer cmd_buffer,
-                   Film *film,
-                   sparks::Scene *scene);
+  void RenderScene(VkCommandBuffer cmd_buffer, Film *film, Scene *scene);
 
   void RenderSceneRayTracing(VkCommandBuffer cmd_buffer,
                              RayTracingFilm *film,
-                             sparks::Scene *scene);
+                             Scene *scene);
 
  private:
   void CreateCommonObjects();

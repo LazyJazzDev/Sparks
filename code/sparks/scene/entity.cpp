@@ -34,6 +34,17 @@ vulkan::Core *Entity::Core() const {
   return scene_->Renderer()->Core();
 }
 
+EntityMetadata Entity::GetTranslatedMetadata() const {
+  AssetManager *asset_manager = scene_->Renderer()->AssetManager();
+  EntityMetadata metadata = metadata_;
+  metadata.albedo_texture_id =
+      asset_manager->GetTextureBindingId(metadata_.albedo_texture_id);
+  metadata.albedo_detail_texture_id =
+      asset_manager->GetTextureBindingId(metadata_.albedo_detail_texture_id);
+  metadata.mesh_id = asset_manager->GetMeshBindingId(metadata_.mesh_id);
+  return metadata;
+}
+
 void Entity::Update() {
   metadata_buffer_->At(0) = metadata_;
   material_buffer_->At(0) = material_;
@@ -42,19 +53,5 @@ void Entity::Update() {
 void Entity::Sync(VkCommandBuffer cmd_buffer, int frame_id) {
   metadata_buffer_->SyncData(cmd_buffer, frame_id);
   material_buffer_->SyncData(cmd_buffer, frame_id);
-}
-
-EntityMetadata Entity::GetTranslatedMetadata() const {
-  AssetManager *asset_manager = scene_->Renderer()->AssetManager();
-  EntityMetadata metadata{};
-  metadata.transform = metadata_.transform;
-  metadata.entity_id = metadata_.entity_id;
-  metadata.albedo_texture_id =
-      asset_manager->GetTextureBindingId(metadata_.albedo_texture_id);
-  metadata.albedo_detail_texture_id =
-      asset_manager->GetTextureBindingId(metadata_.albedo_detail_texture_id);
-  metadata.mesh_id = asset_manager->GetMeshBindingId(metadata_.mesh_id);
-  metadata.detail_scale_offset = metadata_.detail_scale_offset;
-  return metadata;
 }
 }  // namespace sparks

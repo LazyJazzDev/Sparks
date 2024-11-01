@@ -11,6 +11,13 @@ struct EntityMetadata {
   uint32_t albedo_texture_id{0};
   uint32_t albedo_detail_texture_id{0};
   glm::vec4 detail_scale_offset{10.0f, 10.0f, 0.0f, 0.0f};
+  float emission_cdf{0.0f};
+  float padding0;  // padding to 16 bytes
+  float padding1;  // padding to 16 bytes
+  float padding2;  // padding to 16 bytes
+
+  // This structure needs to be padded to 16 bytes
+  // If you wants to add normal_texture_id, you should add it here.
 };
 
 class Entity {
@@ -37,6 +44,14 @@ class Entity {
   }
 
   EntityMetadata GetTranslatedMetadata() const;
+
+  void SetEmissionCDF(float cdf) {
+    metadata_.emission_cdf = cdf;
+  }
+
+  float GetEmissionCDF() const {
+    return metadata_.emission_cdf;
+  }
 
   void Update();
   void Sync(VkCommandBuffer cmd_buffer, int frame_id);

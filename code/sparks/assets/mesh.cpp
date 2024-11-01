@@ -34,10 +34,62 @@ void Mesh::MergeVertices() {
   indices_ = indices;
 }
 
+void Mesh::BuildNormal() {
+  std::vector<bool> face_count(vertices_.size(), false);
+
+  for (int i = 0; i < vertices_.size(); i++) {
+    glm::vec3 normal = vertices_[i].normal;
+    if (glm::length(normal) < 0.5f) {
+      face_count[i] = true;
+    }
+  }
+
+  for (int face_i = 0; face_i < indices_.size() / 3; face_i++) {
+    bool count_u = face_count[indices_[face_i * 3]];
+    bool count_v = face_count[indices_[face_i * 3 + 1]];
+    bool count_w = face_count[indices_[face_i * 3 + 2]];
+
+    if (count_u || count_v || count_w) {
+      Vertex &u = vertices_[indices_[face_i * 3]];
+      Vertex &v = vertices_[indices_[face_i * 3 + 1]];
+      Vertex &w = vertices_[indices_[face_i * 3 + 2]];
+
+      glm::vec3 normal = glm::normalize(
+          glm::cross(v.position - u.position, w.position - u.position));
+
+      if (glm::isnan(normal.x) || glm::isnan(normal.y) ||
+          glm::isnan(normal.z)) {
+        continue;
+      }
+
+      if (count_u) {
+        u.normal += normal;
+      }
+
+      if (count_v) {
+        v.normal += normal;
+      }
+
+      if (count_w) {
+        w.normal += normal;
+      }
+    }
+  }
+
+  for (int i = 0; i < vertices_.size(); i++) {
+    if (face_count[i]) {
+      vertices_[i].normal = glm::normalize(vertices_[i].normal);
+    }
+  }
+}
+
 void Mesh::BuildTangent() {
   if (!indices_.size() || !vertices_.size()) {
     return;
   }
+
+  BuildNormal();
+
   std::vector<Vertex> vertices(indices_.size());
   for (int i = 0; i < indices_.size(); i++) {
     vertices[i] = vertices_[indices_[i]];

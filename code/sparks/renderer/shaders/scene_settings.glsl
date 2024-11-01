@@ -13,6 +13,9 @@ struct SceneSettings {
   uint num_sample;
   uint num_bounces;
   float clamp_value;
+  float total_emission_energy;
+  uint num_entity;
+  bool enable_direct_lighting;
 };
 
 #endif
