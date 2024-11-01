@@ -635,14 +635,14 @@ void Renderer::RenderScene(VkCommandBuffer cmd_buffer,
 
 void Renderer::RenderSceneRayTracing(VkCommandBuffer cmd_buffer,
                                      RayTracingFilm *film,
-                                     sparks::Scene *scene) {
+                                     Scene *scene) {
   vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                     raytracing_pipeline_->Handle());
 
   std::vector<VkDescriptorSet> descriptor_sets{
       scene->SceneSettingsDescriptorSet(core_->CurrentFrame()),
       scene->RayTracingDescriptorSet(core_->CurrentFrame()),
-      scene->Renderer()->AssetManager()->DescriptorSet(core_->CurrentFrame()),
+      asset_manager_->DescriptorSet(core_->CurrentFrame()),
       scene->GetEnvMap()->DescriptorSet(core_->CurrentFrame()),
       film->descriptor_set->Handle()};
 

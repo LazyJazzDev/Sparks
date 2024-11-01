@@ -51,6 +51,8 @@ class AssetManager {
 
   bool ComboForMeshSelection(const char *label, uint32_t *id);
 
+  void SyncData(VkCommandBuffer cmd_buffer, int frame_id);
+
  private:
   void CreateDefaultAssets();
   void CreateDescriptorObjects();
@@ -64,9 +66,14 @@ class AssetManager {
   vulkan::Core *core_;
   uint32_t next_mesh_id_{};
   uint32_t next_texture_id_{};
+
+  // Using map instead of vector here to reserve space for deleting assets
+  // The first element in pairs is the binding index, will be updated every
+  // frame in function GetXXXIds
   std::map<uint32_t, std::pair<uint32_t, std::unique_ptr<TextureAsset>>>
       textures_;
   std::map<uint32_t, std::pair<uint32_t, std::unique_ptr<MeshAsset>>> meshes_;
+  std::unique_ptr<vulkan::DynamicBuffer<MeshMetadata>> mesh_metadata_buffer_;
 
   std::unique_ptr<vulkan::DescriptorSetLayout> descriptor_set_layout_;
   std::unique_ptr<vulkan::DescriptorPool> descriptor_pool_;

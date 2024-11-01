@@ -67,7 +67,8 @@ bool CameraController::Update(float delta_time) {
     result = true;
   }
 
-  camera_->SetPosition(camera_->GetPosition() + move_dir * 0.1f * delta_time);
+  camera_->SetPosition(camera_->GetPosition() +
+                       move_dir * camera_->GetCameraSpeed() * delta_time);
   return result;
 }
 

@@ -30,6 +30,8 @@ class Mesh {
  private:
   void MergeVertices();
 
+  void BuildNormal();
+
   void BuildTangent();
 
   std::vector<Vertex> vertices_;
