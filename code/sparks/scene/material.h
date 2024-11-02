@@ -3,6 +3,7 @@
 
 namespace sparks {
 
+// Definition of material type ids
 constexpr uint32_t MATERIAL_TYPE_LAMBERTIAN = 0;
 constexpr uint32_t MATERIAL_TYPE_SPECULAR = 1;
 constexpr uint32_t MATERIAL_TYPE_PRINCIPLED = 2;

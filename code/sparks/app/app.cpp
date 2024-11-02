@@ -264,7 +264,8 @@ void Application::DestroyImGuiManager() {
 }
 
 void Application::CreateAssetManager() {
-  asset_manager_ = std::make_unique<AssetManager>(core_.get(), 8192, 8192);
+  asset_manager_ =
+      std::make_unique<AssetManager>(core_.get(), kMaxTextures, kMaxMeshes);
 }
 
 void Application::DestroyAssetManager() {
@@ -286,7 +287,7 @@ void Application::CreateRenderer() {
     gui_renderer_->BindRelatedImages(frame_image_.get(),
                                      film_->stencil_image.get());
   });
-  renderer_->CreateScene(8192, &scene_);
+  renderer_->CreateScene(kMaxEntities, &scene_);
 
   camera_controller_ =
       std::make_unique<CameraController>(core_.get(), scene_->Camera());
