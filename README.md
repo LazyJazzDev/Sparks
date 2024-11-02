@@ -75,3 +75,8 @@ cmake --build .
 vcpkg 安装的库可能会有不同版本，如果编译出现问题，请检查 vcpkg 安装的库版本是否正确。
 
 vcpkg 在下载库时可能会出现下载失败的情况，可以尝试多次下载或者使用代理。
+
+
+## 架构介绍
+
+请参考 [docs/framework.md](docs/framework.md) 了解本项目的架构设计。

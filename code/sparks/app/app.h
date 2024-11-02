@@ -33,6 +33,7 @@ class Application {
   void CreateRenderer();
   void CreateGuiRenderer();
   void RegisterInteractions();
+  void GetSceneList();
 
   void LoadScene();
 
@@ -86,6 +87,11 @@ class Application {
   EnvMapSettings editing_envmap_settings_;
   bool render_settings_changed_{false};
   bool show_auxiliary_visual_components_{true};
+
+  std::vector<std::pair<std::string, std::function<void(Scene *scene)>>>
+      scene_list_;
+  int loaded_scene_index_{-1};
+  int selected_scene_index_{0};
 };
 
 }  // namespace sparks

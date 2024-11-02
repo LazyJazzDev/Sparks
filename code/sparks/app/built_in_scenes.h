@@ -5,6 +5,9 @@
 
 namespace sparks {
 
+std::vector<std::pair<std::string, std::function<void(Scene *scene)>>>
+BuiltInSceneList();
+
 void LoadCornellBox(Scene *scene);
 
 void LoadIslandScene(Scene *scene);

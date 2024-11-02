@@ -12,6 +12,7 @@ struct EntityMetadata {
   float padding0;
   float padding1;
   float padding2;
+  // align to 16 bytes
 };
 
 #endif
