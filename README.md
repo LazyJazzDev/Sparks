@@ -77,6 +77,8 @@ vcpkg 安装的库可能会有不同版本，如果编译出现问题，请检�
 vcpkg 在下载库时可能会出现下载失败的情况，可以尝试多次下载或者使用代理。
 
 
-## 架构介绍
+## 如何上手
 
-请参考 [docs/framework.md](docs/framework.md) 了解本项目的架构设计。
+请参照 [docs/getting_started.md](docs/getting_started.md) 查看上手指南。
+
+此外，你还可以查看 [docs/definition.md](docs/definition.md) 了解更多关于本项目的定义和结构。以及 [docs/framework.md](docs/framework.md) 了解本项目的架构。
