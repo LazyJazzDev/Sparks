@@ -1,5 +1,14 @@
 # 上手指南
 
+<!-- TOC -->
+* [上手指南](#上手指南)
+  * [编写着色器](#编写着色器)
+  * [编辑场景](#编辑场景)
+  * [修改着色器资源](#修改着色器资源)
+  * [添加着色器资源](#添加着色器资源)
+  * [调试工具](#调试工具)
+<!-- TOC -->
+
 ## 编写着色器
 
 着色器是渲染管线的核心，它决定了渲染的效果。你需要打开 [code/sparks/renderer/shaders/raytracing.rgen](../code/sparks/renderer/shaders/raytracing.rgen)
@@ -124,3 +133,7 @@ Renderer，AssetManager，Scene都各自维护各自的布局以增加灵活性�
 等模块中，你可以在这些模块中找到对应的代码进行修改，具体修改方法建议参考已有相关内容的实现。注意，修改描述符布局时，需要同时修改对应的描述符池和描述符集合的创建逻辑，以及设计好对应的资源绑定逻辑。
 
 如果对相关概念感到不易理解，可以参考 Vulkan API 的相关文档，或者在 Issues 中提问。
+
+## 调试工具
+
+推荐使用 [Nsight Graphics](https://developer.nvidia.com/nsight-graphics) 进行调试，Nsight Graphics 是 NVIDIA 提供的一款强大的 GPU 调试工具，可以帮助你分析 GPU 的性能瓶颈，查看着色器的输出等。

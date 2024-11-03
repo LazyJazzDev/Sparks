@@ -7,6 +7,18 @@ Sparks Renderer 包含以下几个主要模块：
 - `asset manager`：资源管理模块，包含资源的加载、管理、释放等。
 - `app`：应用模块，包含应用的初始化、主循环、用户界面等。
 
+<!-- TOC -->
+* [架构介绍](#架构介绍)
+  * [Renderer (渲染器核心)](#renderer-渲染器核心)
+    * [Shaders (着色器)](#shaders-着色器)
+  * [Asset Manager (资源管理)](#asset-manager-资源管理)
+    * [Mesh 类](#mesh-类)
+    * [Texture 类](#texture-类)
+    * [LoadMesh 函数](#loadmesh-函数)
+    * [LoadTexture](#loadtexture)
+  * [Scene (场景)](#scene-场景)
+<!-- TOC -->
+
 ## Renderer (渲染器核心)
 
 渲染器核心模块代码位于 [code/sparks/renderer](../code/sparks/renderer) 目录下

@@ -2,11 +2,8 @@
 
 框架中已给出许多着色器资源定义，这些定义可以直接使用，也可以根据需要进行修改。
 
-## 目录
-
 <!-- TOC -->
 * [着色器资源定义](#着色器资源定义)
-  * [目录](#目录)
   * [Scene Set](#scene-set)
     * [SceneSettings](#scenesettings)
     * [Material](#material)
