@@ -22,9 +22,6 @@ Scene::Scene(struct Renderer *renderer, int max_entities)
       pool_size + renderer_->RayTracingDescriptorSetLayout()->GetPoolSize() *
                       renderer_->Core()->MaxFramesInFlight();
 
-  LogInfo("Max sets: {}",
-          renderer_->Core()->MaxFramesInFlight() * (max_entities + 4));
-
   renderer_->Core()->Device()->CreateDescriptorPool(
       pool_size, renderer_->Core()->MaxFramesInFlight() * (max_entities + 4),
       &descriptor_pool_);

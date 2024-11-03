@@ -21,6 +21,6 @@ void main() {
   proj[0][0] = 1.0 / proj[0][0];
   proj[1][1] = 1.0 / proj[1][1];
   ray_direction =
-      mat3(scene_settings.camera_to_world) *
+      mat3(scene_settings.inv_view) *
       normalize(vec4(positions[gl_VertexIndex], 0.0, 1.0) * proj).xyz;
 }

@@ -4,8 +4,8 @@
 struct SceneSettings {
   mat4 projection;
   mat4 inv_projection;
-  mat4 world_to_camera;
-  mat4 camera_to_world;
+  mat4 view;
+  mat4 inv_view;
   float gamma;
   float exposure;
   float persistence;

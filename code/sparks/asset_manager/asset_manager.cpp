@@ -379,4 +379,16 @@ void AssetManager::SyncData(VkCommandBuffer cmd_buffer, int frame_id) {
   mesh_metadata_buffer_->SyncData(cmd_buffer, frame_id);
 }
 
+void AssetManager::Clear() {
+  next_mesh_id_ = 0;
+  next_texture_id_ = 0;
+  textures_.clear();
+  meshes_.clear();
+  last_frame_bound_texture_num_ =
+      std::vector<uint32_t>(core_->MaxFramesInFlight(), max_textures_);
+  last_frame_bound_mesh_num_ =
+      std::vector<uint32_t>(core_->MaxFramesInFlight(), max_meshes_);
+  CreateDefaultAssets();
+}
+
 }  // namespace sparks

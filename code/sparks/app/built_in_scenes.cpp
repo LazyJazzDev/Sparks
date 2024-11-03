@@ -1,8 +1,17 @@
-#include "sparks/app/built_in_scene.h"
+#include "sparks/app/built_in_scenes.h"
+
 #include "sparks/asset_manager/asset_manager.h"
 #include "sparks/renderer/renderer.h"
 
 namespace sparks {
+
+std::vector<std::pair<std::string, std::function<void(Scene *scene)>>>
+BuiltInSceneList() {
+  return {
+      {"Cornell Box", LoadCornellBox},
+      {"Island Scene", LoadIslandScene},
+  };
+}
 
 void LoadCornellBox(Scene *scene) {
   AssetManager *asset_manager = scene->Renderer()->AssetManager();

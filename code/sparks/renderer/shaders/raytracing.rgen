@@ -23,7 +23,8 @@ layout(set = 0, binding = 2, std430) buffer EntityMetadataBuffer {
   EntityMetadata metadatas[];
 };
 
-layout(set = 1, binding = 0) uniform accelerationStructureEXT scene;
+layout(set = 1, binding = 0) uniform
+    accelerationStructureEXT scene;  // Built in attribute, don't need to define
 
 layout(set = 2, binding = 0, std430) buffer VertexBuffers {
   float vertex_data[];
@@ -190,10 +191,9 @@ void main() {
     proj[0][0] = 1.0 / proj[0][0];
     proj[1][1] = 1.0 / proj[1][1];
 
-    vec4 origin = scene_settings.camera_to_world[3];  // * vec4(0, 0, 0, 1);
+    vec4 origin = scene_settings.inv_view[3];  // * vec4(0, 0, 0, 1);
     vec4 target = vec4(d.x, -d.y, 0, 1) * proj;
-    vec4 direction =
-        scene_settings.camera_to_world * vec4(normalize(target.xyz), 0);
+    vec4 direction = scene_settings.inv_view * vec4(normalize(target.xyz), 0);
 
     float tmin = 0.001;
     float tmax = 10000.0;

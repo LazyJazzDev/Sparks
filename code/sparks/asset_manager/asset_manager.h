@@ -53,6 +53,8 @@ class AssetManager {
 
   void SyncData(VkCommandBuffer cmd_buffer, int frame_id);
 
+  void Clear();
+
  private:
   void CreateDefaultAssets();
   void CreateDescriptorObjects();

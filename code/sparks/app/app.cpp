@@ -5,7 +5,7 @@
 
 #include "ImGuizmo.h"
 #include "glm/gtc/matrix_transform.hpp"
-#include "sparks/app/built_in_scene.h"
+#include "sparks/app/built_in_scenes.h"
 
 namespace sparks {
 
@@ -64,6 +64,7 @@ void Application::OnInit() {
   CreateRenderer();
   CreateGuiRenderer();
   RegisterInteractions();
+  GetSceneList();
   LoadScene();
 
   // Texture skybox[5];
@@ -86,6 +87,10 @@ void Application::OnClose() {
 }
 
 void Application::OnUpdate() {
+  if (selected_scene_index_ != loaded_scene_index_) {
+    LoadScene();
+  }
+
   auto current_time = std::chrono::high_resolution_clock::now();
   static auto last_time = current_time;
   float delta_time = std::chrono::duration<float, std::chrono::seconds::period>(
@@ -264,7 +269,8 @@ void Application::DestroyImGuiManager() {
 }
 
 void Application::CreateAssetManager() {
-  asset_manager_ = std::make_unique<AssetManager>(core_.get(), 8192, 8192);
+  asset_manager_ =
+      std::make_unique<AssetManager>(core_.get(), kMaxTextures, kMaxMeshes);
 }
 
 void Application::DestroyAssetManager() {
@@ -286,10 +292,7 @@ void Application::CreateRenderer() {
     gui_renderer_->BindRelatedImages(frame_image_.get(),
                                      film_->stencil_image.get());
   });
-  renderer_->CreateScene(8192, &scene_);
-
-  camera_controller_ =
-      std::make_unique<CameraController>(core_.get(), scene_->Camera());
+  renderer_->CreateScene(kMaxEntities, &scene_);
 }
 
 void Application::DestroyRenderer() {
@@ -312,8 +315,15 @@ void Application::DestroyGuiRenderer() {
 }
 
 void Application::LoadScene() {
-  LoadCornellBox(scene_.get());
-  // LoadIslandScene(scene_.get());
+  Core()->Device()->WaitIdle();
+  asset_manager_->Clear();
+  scene_.reset();
+  renderer_->CreateScene(kMaxEntities, &scene_);
+
+  scene_list_[selected_scene_index_].second(scene_.get());
+  camera_controller_ =
+      std::make_unique<CameraController>(core_.get(), scene_->Camera());
+  loaded_scene_index_ = selected_scene_index_;
 }
 
 void Application::ImGui() {
@@ -397,6 +407,10 @@ void Application::RegisterInteractions() {
   });
 }
 
+void Application::GetSceneList() {
+  scene_list_ = BuiltInSceneList();
+}
+
 ImVec2 Application::ImGuiSettingsWindow() {
   ImVec2 window_size = ImVec2{};
   ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Once);
@@ -405,22 +419,29 @@ ImVec2 Application::ImGuiSettingsWindow() {
                ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_MenuBar);
   window_size = ImGui::GetWindowSize();
-  if (ImGui::BeginMenuBar()) {
-    if (ImGui::BeginMenu("File")) {
-      char *result{nullptr};
-      if (ImGui::MenuItem("Open Scene")) {
-      }
-      if (ImGui::MenuItem("Import Image..")) {
-      }
-      if (ImGui::MenuItem("Import Mesh..")) {
-      }
-      ImGui::Separator();
-      if (ImGui::MenuItem("Capture and Save..")) {
-      }
-      ImGui::EndMenu();
-    }
-    ImGui::EndMenuBar();
+  // if (ImGui::BeginMenuBar()) {
+  //   if (ImGui::BeginMenu("File")) {
+  //     char *result{nullptr};
+  //     if (ImGui::MenuItem("Open Scene")) {
+  //     }
+  //     if (ImGui::MenuItem("Import Image..")) {
+  //     }
+  //     if (ImGui::MenuItem("Import Mesh..")) {
+  //     }
+  //     ImGui::Separator();
+  //     if (ImGui::MenuItem("Capture and Save..")) {
+  //     }
+  //     ImGui::EndMenu();
+  //   }
+  //   ImGui::EndMenuBar();
+  // }
+
+  std::vector<const char *> scene_names;
+  for (auto &[name, _] : scene_list_) {
+    scene_names.push_back(name.c_str());
   }
+  ImGui::Combo("Scene", &selected_scene_index_, scene_names.data(),
+               static_cast<int>(scene_names.size()));
 
   if (ImGui::RadioButton("Preview", !output_raytracing_result_)) {
     output_raytracing_result_ = false;
